@@ -1,0 +1,490 @@
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { usePage, router } from '@inertiajs/vue3'
+import { useToast } from '@/Composables/useToast'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import Card from '@/Components/UI/Card.vue'
+import Input from '@/Components/UI/Input.vue'
+import Select from '@/Components/UI/Select.vue'
+import Modal from '@/Components/UI/Modal.vue'
+import Badge from '@/Components/UI/Badge.vue'
+import {
+  MagnifyingGlassIcon, BarcodeIcon, ShoppingCartIcon,
+  PlusIcon, MinusIcon, TrashIcon, PauseIcon,
+  CreditCardIcon, BanknotesIcon, QrCodeIcon,
+  ArrowPathIcon, PrinterIcon, XMarkIcon
+} from '@heroicons/vue/24/outline'
+
+const page = usePage()
+const { success, error } = useToast()
+
+const props = defineProps({
+  products: { type: Array, default: () => [] },
+  customers: { type: Array, default: () => [] },
+  parkedTransactions: { type: Array, default: () => [] },
+})
+
+// State
+const cart = ref([])
+const search = ref('')
+const customerId = ref(null)
+const paymentMethod = ref('cash')
+const discount = ref(0)
+const discountType = ref('amount') // amount, percent
+const taxAmount = ref(0)
+const notes = ref('')
+const showParkModal = ref(false)
+const showPaymentModal = ref(false)
+const showCustomerModal = ref(false)
+const barcodeInput = ref('')
+const selectedCategory = ref('')
+const categories = computed(() => [...new Set(props.products.map(p => p.category?.name).filter(Boolean))])
+
+// Computed
+const filteredProducts = computed(() => {
+  let result = props.products.filter(p => p.is_active && p.stock > 0)
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      p.barcode?.toLowerCase().includes(q)
+    )
+  }
+  if (selectedCategory.value) {
+    result = result.filter(p => p.category?.name === selectedCategory.value)
+  }
+  return result
+})
+
+function addToCart(product) {
+  if (product.stock <= 0) { error('Stok habis'); return }
+  const existing = cart.value.find(item => item.id === product.id)
+  if (existing) {
+    if (existing.qty >= product.stock) { error('Stok tidak mencukupi'); return }
+    existing.qty++
+  } else {
+    cart.value.push({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      price: Number(product.selling_price),
+      cost: Number(product.cost_price),
+      qty: 1,
+      maxQty: product.stock,
+      tax: product.tax?.rate || 0,
+      discount: 0,
+      discountType: 'amount',
+    })
+  }
+  search.value = ''
+}
+
+function updateQty(item, delta) {
+  const newQty = item.qty + delta
+  if (newQty < 1) removeItem(item)
+  else if (newQty > item.maxQty) error(`Maksimal ${item.maxQty}`)
+  else item.qty = newQty
+}
+
+function removeItem(item) {
+  cart.value = cart.value.filter(i => i !== item)
+}
+
+function clearCart() {
+  if (cart.value.length && confirm('Kosongkan keranjang?')) cart.value = []
+}
+
+function parkTransaction() {
+  if (!cart.value.length) { error('Keranjang kosong'); return }
+  showParkModal.value = true
+}
+
+async function saveParked() {
+  try {
+    await router.post('/api/v1/parked-transactions', {
+      customer_id: customerId.value,
+      items: cart.value.map(i => ({
+        product_id: i.id,
+        qty: i.qty,
+        price: i.price,
+        discount: i.discount,
+        discount_type: i.discountType,
+      })),
+      discount: discountValue.value,
+      discount_type: discountType.value,
+      tax_amount: totalTax.value,
+      notes: notes.value,
+    }, {
+      onSuccess: () => {
+        cart.value = []
+        customerId.value = null
+        discount.value = 0
+        notes.value = ''
+        showParkModal.value = false
+        success('Transaksi disimpan sebagai tertunda')
+      },
+      onError: (err) => error(err),
+    })
+  } catch (e) { error('Gagal menyimpan') }
+}
+
+function restoreParked(parked) {
+  cart.value = parked.items.map(i => ({
+    id: i.product_id,
+    name: i.name,
+    sku: i.sku,
+    price: i.price,
+    cost: i.cost,
+    qty: i.qty,
+    maxQty: 999,
+    tax: i.tax || 0,
+    discount: i.discount,
+    discountType: i.discount_type,
+  }))
+  customerId.value = parked.customer_id
+  discount.value = parked.discount
+  discountType.value = parked.discount_type
+  notes.value = parked.notes
+  router.visit('/pos')
+}
+
+function openPayment() {
+  if (!cart.value.length) { error('Keranjang kosong'); return }
+  showPaymentModal.value = true
+}
+
+async function processPayment(paymentData) {
+  try {
+    await router.post('/pos/checkout', {
+      type: 'sell',
+      customer_id: customerId.value,
+      discount: discountValue.value,
+      discount_type: discountType.value,
+      tax_amount: totalTax.value,
+      notes: notes.value,
+      items: cart.value.map(i => ({
+        product_id: i.id,
+        quantity: i.qty,
+        unit_price: i.price,
+        discount: i.discount,
+      })),
+      payments: [paymentData],
+    }, {
+      onSuccess: () => {
+        cart.value = []
+        customerId.value = null
+        discount.value = 0
+        discountType.value = 'amount'
+        notes.value = ''
+        showPaymentModal.value = false
+        success('Transaksi berhasil!')
+      },
+      onError: (err) => error(err),
+    })
+  } catch (e) { error('Gagal memproses pembayaran') }
+}
+
+const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.qty * item.price, 0))
+const discountValue = computed(() => {
+  if (discountType.value === 'percent') return subtotal.value * discount.value / 100
+  return discount.value
+})
+const taxableAmount = computed(() => subtotal.value - discountValue.value)
+const totalTax = computed(() => taxableAmount.value * (taxAmount.value || 0) / 100)
+const grandTotal = computed(() => taxableAmount.value + totalTax.value)
+
+// Keyboard shortcuts
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
+
+function handleKeydown(e) {
+  if (e.target.tagName === 'INPUT') return
+  switch (e.key) {
+    case 'F2': e.preventDefault(); openPayment(); break
+    case 'F3': e.preventDefault(); search.value = ''; document.querySelector('input[placeholder*="Cari"]')?.focus(); break
+    case 'F4': e.preventDefault(); parkTransaction(); break
+    case 'F5': e.preventDefault(); clearCart(); break
+    case 'F6': e.preventDefault(); discountType.value = discountType.value === 'amount' ? 'percent' : 'amount'; break
+    case 'F7': e.preventDefault(); showCustomerModal.value = true; break
+    case 'F8': e.preventDefault(); paymentMethod.value = paymentMethod.value === 'cash' ? 'card' : paymentMethod.value === 'card' ? 'qris' : 'cash'; break
+    case 'Escape':
+      if (showParkModal.value) showParkModal.value = false
+      else if (showPaymentModal.value) showPaymentModal.value = false
+      else if (showCustomerModal.value) showCustomerModal.value = false
+      break
+  }
+}
+</script>
+<template>
+  <AppLayout>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-900">POS / Kasir</h1>
+        <div class="flex items-center gap-3">
+          <Badge :variant="cart.length > 0 ? 'success' : 'default'" :label="cart.length + ' item'" />
+        </div>
+      </div>
+    </template>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left: Product Grid -->
+      <div class="lg:col-span-8">
+        <Card>
+          <div class="flex flex-col sm:flex-row gap-3 mb-4">
+            <div class="flex-1 relative">
+              <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                v-model="search"
+                type="text"
+                placeholder="Cari produk (nama/SKU/barcode) atau scan barcode... (F3)"
+                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <Select v-model="selectedCategory" :options="[{value:'',label:'Semua Kategori'},...categories.map(c=>({value:c,label:c}))]" placeholder="Kategori" class="w-48" />
+            <button
+              type="button"
+              class="inline-flex items-center justify-center px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg transition-colors hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="clearCart"
+              :disabled="!cart.length"
+            >
+              <TrashIcon class="w-4 h-4 mr-2" /> Kosongkan
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg transition-colors hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="parkTransaction"
+              :disabled="!cart.length"
+            >
+              <PauseIcon class="w-4 h-4 mr-2" /> Simpan (F4)
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 text-white font-medium rounded-lg transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="openPayment"
+              :disabled="!cart.length"
+              style="height: 44px;"
+            >
+              <CreditCardIcon class="w-5 h-5 mr-2" /> Bayar (F2)
+            </button>
+          </div>
+
+          <!-- Product Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 max-h-[55vh] overflow-y-auto">
+            <div
+              v-for="product in filteredProducts"
+              :key="product.id"
+              @click="addToCart(product)"
+              class="bg-white border border-gray-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group relative"
+            >
+              <div class="text-center mb-2">
+                <div v-if="product.image" class="w-full h-24 object-cover rounded-lg mb-2">
+                  <img :src="product.image" :alt="product.name" class="w-full h-full object-cover rounded-lg" />
+                </div>
+                <div v-else class="w-full h-24 bg-gray-50 rounded-lg flex items-center justify-center mb-2">
+                  <CubeIcon class="w-10 h-10 text-gray-300" />
+                </div>
+              </div>
+              <h4 class="font-medium text-sm text-gray-900 line-clamp-2 mb-1">{{ product.name }}</h4>
+              <p class="text-xs text-gray-500 mb-1">{{ product.sku }}</p>
+              <p class="text-lg font-bold text-indigo-600">Rp {{ Number(product.selling_price).toLocaleString('id-ID') }}</p>
+              <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                <Badge :variant="product.stock <= product.min_stock ? 'warning' : 'success'" size="sm" :label="`Stok: ${product.stock}`" />
+                <span class="text-xs text-gray-400">{{ product.category?.name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="filteredProducts.length === 0" class="text-center py-12 text-gray-500">
+            <MagnifyingGlassIcon class="w-12 h-12 mx-auto text-gray-300 mb-2" />
+            <p>Tidak ada produk ditemukan</p>
+          </div>
+        </Card>
+      </div>
+
+      <!-- Right: Cart & Payment -->
+      <div class="lg:col-span-4">
+        <Card class="sticky top-24">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-lg">Keranjang</h3>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center px-3 py-1.5 bg-gray-100 text-gray-700 font-medium rounded-lg transition-colors hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="clearCart"
+              :disabled="!cart.length"
+            >
+              <TrashIcon class="w-4 h-4 mr-1.5" /> Clear
+            </button>
+          </div>
+
+          <!-- Cart Items -->
+          <div v-if="cart.length === 0" class="text-center py-12 text-gray-500 border-2 border-dashed border-gray-200 rounded-xl">
+            <ShoppingCartIcon class="w-16 h-16 mx-auto text-gray-300 mb-3" />
+            <p class="text-gray-500">Keranjang kosong</p>
+            <p class="text-xs text-gray-400">Klik produk di kiri untuk menambah</p>
+          </div>
+          <div v-else class="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
+            <div v-for="(item, idx) in cart" :key="item.id" class="bg-gray-50 rounded-lg p-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-gray-900 truncate">{{ item.name }}</p>
+                  <p class="text-xs text-gray-500">{{ item.sku }} • Rp {{ Number(item.price).toLocaleString('id-ID') }}</p>
+                </div>
+                <button @click="removeItem(item)" class="text-red-500 hover:text-red-700 p-1">
+                  <TrashIcon class="w-4 h-4" />
+                </button>
+              </div>
+              <div class="flex items-center gap-2 mt-2">
+                <button @click="updateQty(item, -1)" class="w-8 h-8 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100"><MinusIcon class="w-4 h-4" /></button>
+                <input
+                  type="number"
+                  v-model.number="item.qty"
+                  :min="1"
+                  :max="item.maxQty"
+                  class="w-16 text-center border border-gray-300 rounded py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  @blur="item.qty = Math.max(1, Math.min(item.maxQty, item.qty))"
+                />
+                <button @click="updateQty(item, 1)" class="w-8 h-8 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100"><PlusIcon class="w-4 h-4" /></button>
+                <div class="flex-1 text-right font-medium text-gray-900">
+                  Rp {{ Number(item.qty * item.price).toLocaleString('id-ID') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="border-t border-gray-100 pt-4 space-y-3">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Subtotal</span>
+              <span class="font-medium text-gray-900">Rp {{ Number(subtotal).toLocaleString('id-ID') }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-500 w-24">Diskon</label>
+              <Select v-model="discountType" :options="[{value:'amount',label:'Rp'},{value:'percent',label:'%'}]" class="w-20" />
+              <input
+                type="number"
+                v-model.number="discount"
+                :min="0"
+                :max="discountType === 'percent' ? 100 : subtotal"
+                step="0.01"
+                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Total Diskon</span>
+              <span class="font-medium text-red-600">- Rp {{ Number(discountValue).toLocaleString('id-ID') }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">PPN ({{ taxAmount }}%)</span>
+              <span class="font-medium text-gray-900">Rp {{ Number(totalTax).toLocaleString('id-ID') }}</span>
+            </div>
+            <div class="flex justify-between text-lg font-bold border-t border-gray-100 pt-3">
+              <span class="text-gray-900">Total</span>
+              <span class="text-indigo-600">Rp {{ Number(grandTotal).toLocaleString('id-ID') }}</span>
+            </div>
+          </div>
+
+          <!-- Customer & Payment -->
+          <div class="border-t border-gray-100 pt-4 space-y-3">
+            <Select
+              v-model="customerId"
+              :options="[{value:'',label:'Pelanggan Umum'},...props.customers.map(c=>({value:c.id,label:c.name}))]"
+              placeholder="Pilih Pelanggan (F7)"
+              label="Pelanggan"
+            />
+            <div class="flex gap-2">
+              <label class="text-sm text-gray-500 w-24">Bayar Via</label>
+              <Select
+                v-model="paymentMethod"
+                :options="[
+                  {value:'cash',label:'Tunai'},
+                  {value:'card',label:'Kartu'},
+                  {value:'qris',label:'QRIS'},
+                  {value:'transfer',label:'Transfer'}
+                ]"
+                class="flex-1"
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="w-full inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white font-medium rounded-lg transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="openPayment"
+            :disabled="!cart.length"
+            style="height: 52px; font-size: 1.1rem;"
+          >
+            <CreditCardIcon class="w-5 h-5 mr-2" /> Bayar: Rp {{ Number(grandTotal).toLocaleString('id-ID') }}
+          </button>
+        </Card>
+
+        <!-- Parked Transactions -->
+        <Card v-if="props.parkedTransactions.length" title="Transaksi Tertunda" class="mt-4">
+          <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div v-for="p in props.parkedTransactions.slice(0, 5)" :key="p.id" class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ p.invoice_number }}</p>
+                <p class="text-xs text-gray-500">{{ p.customer?.name || 'Umum' }} • Rp {{ Number(p.total).toLocaleString('id-ID') }}</p>
+              </div>
+              <div class="flex gap-1">
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center px-3 py-1.5 bg-gray-100 text-gray-700 font-medium rounded-lg transition-colors hover:bg-gray-200"
+                  @click="restoreParked(p)"
+                >
+                  <ArrowPathIcon class="w-3.5 h-3.5 mr-1.5" />
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center px-3 py-1.5 bg-red-100 text-red-700 font-medium rounded-lg transition-colors hover:bg-red-200"
+                  @click="() => router.delete('/api/v1/parked-transactions/' + p.id, { onSuccess: () => success('Dihapus') })"
+                >
+                  <XMarkIcon class="w-3.5 h-3.5 mr-1.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <Modal v-model="showParkModal" title="Simpan Transaksi Tertunda" @confirm="saveParked">
+      <div class="space-y-4">
+        <Select v-model="customerId" :options="[{value:'',label:'Pelanggan Umum'},...props.customers.map(c=>({value:c.id,label:c.name}))]" label="Pelanggan" />
+        <Input v-model="notes" type="textarea" label="Catatan" placeholder="Catatan untuk transaksi tertunda" rows="3" />
+      </div>
+    </Modal>
+
+    <Modal v-model="showPaymentModal" title="Proses Pembayaran" size="lg" @confirm="() => {}">
+      <div class="space-y-4">
+        <div class="bg-gray-50 rounded-lg p-4">
+          <div class="flex justify-between text-lg font-bold mb-2">
+            <span>Total Bayar</span>
+            <span class="text-indigo-600">Rp {{ Number(grandTotal).toLocaleString('id-ID') }}</span>
+          </div>
+          <Select v-model="paymentMethod" :options="[{value:'cash',label:'Tunai'},{value:'card',label:'Kartu'},{value:'qris',label:'QRIS'},{value:'transfer',label:'Transfer'}]" label="Metode" />
+          <Input v-model="notes" label="Catatan" placeholder="Catatan pembayaran" />
+        </div>
+        <template #footer>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg transition-colors hover:bg-gray-200"
+            @click="showPaymentModal = false"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg transition-colors hover:bg-indigo-700"
+            @click="processPayment({ method: paymentMethod, amount: grandTotal, notes: notes.value })"
+          >
+            <CreditCardIcon class="w-4 h-4 mr-2" /> Proses Pembayaran
+          </button>
+        </template>
+      </div>
+    </Modal>
+  </AppLayout>
+</template>
