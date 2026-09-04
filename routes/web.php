@@ -2,12 +2,16 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ParkedTransactionController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\RegisterController;
+use App\Http\Controllers\SaasController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockCountController;
+use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TransactionController;
 use App\Models\Branch;
 use App\Models\Category;
@@ -178,4 +182,26 @@ Route::middleware('auth')->group(function () {
             'branches' => Branch::select('id', 'name', 'code')->get(),
         ]);
     })->name('warehouses.index');
+
+    // ═══════════════════════════════════════════════════════════════
+    // SaaS Management - Super Admin Owner
+    // ═══════════════════════════════════════════════════════════════
+    Route::get('/saas', [SaasController::class, 'dashboard'])->name('saas.dashboard');
+    Route::get('/tenants', [TenantController::class, 'index'])->name('tenants.index');
+    Route::post('/tenants', [TenantController::class, 'store'])->name('tenants.store');
+    Route::get('/tenants/{tenant}', [TenantController::class, 'show'])->name('tenants.show');
+    Route::put('/tenants/{tenant}', [TenantController::class, 'update'])->name('tenants.update');
+    Route::delete('/tenants/{tenant}', [TenantController::class, 'destroy'])->name('tenants.destroy');
+    Route::post('/tenants/{tenant}/suspend', [TenantController::class, 'suspend'])->name('tenants.suspend');
+    Route::post('/tenants/{tenant}/activate', [TenantController::class, 'activate'])->name('tenants.activate');
+
+    Route::get('/billing/plans', [PlanController::class, 'index'])->name('plans.index');
+    Route::post('/billing/plans', [PlanController::class, 'store'])->name('plans.store');
+    Route::put('/billing/plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
+    Route::delete('/billing/plans/{plan}', [PlanController::class, 'destroy'])->name('plans.destroy');
+
+    Route::get('/billing/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::post('/billing/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::post('/billing/invoices/{invoice}/pay', [InvoiceController::class, 'markPaid'])->name('invoices.markPaid');
+    Route::delete('/billing/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
 });

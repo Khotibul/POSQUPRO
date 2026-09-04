@@ -25,6 +25,11 @@ class RolePermissionSeeder extends Seeder
             'payments.view', 'payments.manage',
             'reports.view', 'finance.view',
             'pos.access',
+            // SaaS permissions
+            'tenants.view', 'tenants.create', 'tenants.edit', 'tenants.delete', 'tenants.manage',
+            'plans.view', 'plans.manage',
+            'invoices.view', 'invoices.create', 'invoices.manage',
+            'billing.view', 'billing.manage',
         ];
 
         foreach ($permissions as $permission) {

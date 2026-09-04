@@ -6,7 +6,8 @@ import {
   DocumentTextIcon, UsersIcon, TruckIcon, ShoppingBagIcon,
   ClipboardDocumentListIcon, BanknotesIcon, ChartBarIcon,
   Cog6ToothIcon, UserGroupIcon, ChevronLeftIcon, ChevronRightIcon,
-  TagIcon, ScaleIcon, ReceiptPercentIcon, BuildingStorefrontIcon, BuildingOffice2Icon
+  TagIcon, ScaleIcon, ReceiptPercentIcon, BuildingStorefrontIcon, BuildingOffice2Icon,
+  CurrencyDollarIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -22,6 +23,7 @@ const iconMap = {
   DocumentTextIcon, UsersIcon, TruckIcon, ShoppingBagIcon,
   ClipboardDocumentListIcon, BanknotesIcon, ChartBarIcon,
   Cog6ToothIcon, UserGroupIcon, TagIcon, ScaleIcon, ReceiptPercentIcon, BuildingStorefrontIcon, BuildingOffice2Icon,
+  CurrencyDollarIcon,
 }
 
 const sidebarWidth = computed(() => (props.collapsed ? 'w-20' : 'w-64'))

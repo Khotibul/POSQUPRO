@@ -1,7 +1,6 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 
-const sidebarOpen = ref(true)
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
 
@@ -35,31 +34,51 @@ function navigateShortcut(route) {
   closeMobileSidebar()
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// POSQUPRO SaaS — Sidebar Navigation
+// Roles: Super Admin (owner platform), Admin, Warehouse Manager, Cashier, Finance
+// ══════════════════════════════════════════════════════════════════════════════
 const navItems = [
-  { name: 'dashboard', label: 'Dashboard', icon: 'HomeIcon', route: '/dashboard', shortcut: 'F1' },
-  { name: 'pos', label: 'POS / Kasir', icon: 'CreditCardIcon', route: '/pos', shortcut: 'F2', roles: ['Cashier', 'Super Admin', 'Admin'] },
-  { name: 'parked', label: 'Transaksi Tertunda', icon: 'PauseCircleIcon', route: '/parked-transactions', shortcut: 'F3', roles: ['Cashier', 'Super Admin', 'Admin'] },
-  { name: 'products', label: 'Produk', icon: 'CubeIcon', route: '/products', roles: ['Cashier', 'Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'categories', label: 'Kategori', icon: 'TagIcon', route: '/categories', roles: ['Cashier', 'Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'units', label: 'Satuan', icon: 'ScaleIcon', route: '/units', roles: ['Cashier', 'Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'taxes', label: 'Pajak', icon: 'ReceiptPercentIcon', route: '/taxes', roles: ['Super Admin', 'Admin', 'Finance'] },
-  { name: 'inventory', label: 'Inventory', icon: 'ArchiveBoxIcon', route: '/inventory', shortcut: 'F5', roles: ['Cashier', 'Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'warehouses', label: 'Gudang', icon: 'BuildingStorefrontIcon', route: '/warehouses', roles: ['Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'branches', label: 'Cabang', icon: 'BuildingOffice2Icon', route: '/branches', roles: ['Super Admin', 'Admin'] },
-  { name: 'transactions', label: 'Transaksi', icon: 'DocumentTextIcon', route: '/transactions', shortcut: 'F4', roles: ['Super Admin', 'Admin', 'Finance'] },
+  // ── OVERVIEW ──────────────────────────────────────────────────
+  { name: 'dashboard', label: 'Dashboard', icon: 'HomeIcon', route: '/dashboard', shortcut: 'F1', roles: ['Super Admin', 'Admin', 'Warehouse Manager', 'Cashier', 'Finance'] },
+
+  // ── SaaS MANAGEMENT (Super Admin only) ───────────────────────
+  { name: 'saas', label: 'SaaS Dashboard', icon: 'ChartBarIcon', route: '/saas', roles: ['Super Admin'] },
+  { name: 'tenants', label: 'Tenant', icon: 'BuildingOffice2Icon', route: '/tenants', roles: ['Super Admin'] },
+  { name: 'plans', label: 'Paket & Billing', icon: 'CurrencyDollarIcon', route: '/billing/plans', roles: ['Super Admin'] },
+  { name: 'invoices', label: 'Invoice', icon: 'DocumentTextIcon', route: '/billing/invoices', roles: ['Super Admin'] },
+
+  // ── TRANSAKSI ────────────────────────────────────────────────
+  { name: 'pos', label: 'POS / Kasir', icon: 'CreditCardIcon', route: '/pos', shortcut: 'F2', roles: ['Super Admin', 'Admin', 'Cashier'] },
+  { name: 'parked', label: 'Transaksi Tertunda', icon: 'PauseCircleIcon', route: '/parked-transactions', roles: ['Super Admin', 'Admin', 'Cashier'] },
+  { name: 'transactions', label: 'Riwayat Transaksi', icon: 'ClipboardDocumentListIcon', route: '/transactions', shortcut: 'F4', roles: ['Super Admin', 'Admin', 'Finance'] },
+  { name: 'register', label: 'Kas & Shift', icon: 'BanknotesIcon', route: '/register', shortcut: 'F9', roles: ['Super Admin', 'Admin', 'Cashier'] },
+
+  // ── MASTER DATA ──────────────────────────────────────────────
+  { name: 'products', label: 'Produk', icon: 'CubeIcon', route: '/products', roles: ['Super Admin', 'Admin', 'Warehouse Manager', 'Cashier'] },
+  { name: 'categories', label: 'Kategori', icon: 'TagIcon', route: '/categories', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
+  { name: 'units', label: 'Satuan', icon: 'ScaleIcon', route: '/units', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
   { name: 'customers', label: 'Pelanggan', icon: 'UsersIcon', route: '/customers', roles: ['Super Admin', 'Admin', 'Cashier'] },
   { name: 'suppliers', label: 'Supplier', icon: 'TruckIcon', route: '/suppliers', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
-  { name: 'purchaseOrders', label: 'Purchase Order', icon: 'ShoppingBagIcon', route: '/purchase-orders', shortcut: 'F7', roles: ['Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'stockCounts', label: 'Stock Opname', icon: 'ClipboardDocumentListIcon', route: '/stock-counts', shortcut: 'F8', roles: ['Warehouse Manager', 'Super Admin', 'Admin'] },
-  { name: 'register', label: 'Register & Shift', icon: 'BanknotesIcon', route: '/register', shortcut: 'F9', roles: ['Cashier', 'Super Admin', 'Admin'] },
-  { name: 'reports', label: 'Laporan', icon: 'ChartBarIcon', route: '/reports', shortcut: 'F6', roles: ['Super Admin', 'Admin', 'Finance'] },
-  { name: 'settings', label: 'Pengaturan', icon: 'Cog6ToothIcon', route: '/settings', shortcut: 'F10', roles: ['Super Admin', 'Admin'] },
+
+  // ── INVENTORY ────────────────────────────────────────────────
+  { name: 'inventory', label: 'Inventory', icon: 'ArchiveBoxIcon', route: '/inventory', shortcut: 'F5', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
+  { name: 'warehouses', label: 'Gudang', icon: 'BuildingStorefrontIcon', route: '/warehouses', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
+  { name: 'branches', label: 'Cabang', icon: 'BuildingOffice2Icon', route: '/branches', roles: ['Super Admin', 'Admin'] },
+  { name: 'purchaseOrders', label: 'Purchase Order', icon: 'ShoppingBagIcon', route: '/purchase-orders', shortcut: 'F7', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
+  { name: 'stockCounts', label: 'Stock Opname', icon: 'ClipboardDocumentListIcon', route: '/stock-counts', shortcut: 'F8', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
+
+  // ── LAPORAN ──────────────────────────────────────────────────
+  { name: 'reports', label: 'Laporan & Analitik', icon: 'ChartBarIcon', route: '/reports', shortcut: 'F6', roles: ['Super Admin', 'Admin', 'Finance'] },
+  { name: 'taxes', label: 'Pajak', icon: 'ReceiptPercentIcon', route: '/taxes', roles: ['Super Admin', 'Admin', 'Finance'] },
+
+  // ── SISTEM ───────────────────────────────────────────────────
   { name: 'users', label: 'Pengguna & RBAC', icon: 'UserGroupIcon', route: '/users', roles: ['Super Admin', 'Admin'] },
+  { name: 'settings', label: 'Pengaturan', icon: 'Cog6ToothIcon', route: '/settings', shortcut: 'F10', roles: ['Super Admin', 'Admin'] },
 ]
 
 export function useAppLayout() {
   return {
-    sidebarOpen,
     sidebarCollapsed,
     mobileSidebarOpen,
     shortcuts,

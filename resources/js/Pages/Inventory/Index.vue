@@ -11,12 +11,11 @@ import Modal from '@/Components/UI/Modal.vue'
 import Table from '@/Components/UI/Table.vue'
 import Badge from '@/Components/UI/Badge.vue'
 import {
-  MagnifyingGlassIcon, PlusIcon, ArrowPathIcon,
+  MagnifyingGlassIcon, ArrowPathIcon,
   ArrowDownTrayIcon, ArrowUpTrayIcon, ExclamationTriangleIcon,
   ClipboardDocumentListIcon, PencilIcon, EyeIcon
 } from '@heroicons/vue/24/outline'
 
-const page = usePage()
 const { success, error } = useToast()
 
 const props = defineProps({
@@ -24,26 +23,50 @@ const props = defineProps({
   histories: { type: Object, default: () => ({ data: [], total: 0, current_page: 1, per_page: 15 }) },
 })
 
-// State
 const search = ref('')
-const filterType = ref('') // all, low, out
+const filterType = ref('')
+const loading = ref(false)
 const showAdjustModal = ref(false)
 const adjustingProduct = ref(null)
 const adjustQty = ref(0)
-const adjustType = ref('adjustment') // in, out, adjustment
+const adjustType = ref('adjustment')
 const adjustReason = ref('')
-const adjustTypeOptions = computed(() => [
+
+const adjustTypeOptions = [
   { value: 'in', label: 'Masuk (+)' },
   { value: 'out', label: 'Keluar (-)' },
   { value: 'adjustment', label: 'Koreksi (Set)' },
-])
+]
+
+const filteredProducts = computed(() => {
+  let data = props.products.data
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    data = data.filter(p => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
+  }
+  if (filterType.value === 'low') data = data.filter(p => p.stock <= p.min_stock && p.stock > 0)
+  if (filterType.value === 'out') data = data.filter(p => p.stock === 0)
+  return data
+})
+
+const lowStockProducts = computed(() =>
+  props.products.data.filter(p => p.stock <= p.min_stock)
+)
+
+const totalStockValue = computed(() =>
+  props.products.data.reduce((sum, p) => sum + p.stock * p.cost_price, 0)
+)
+
+const totalSellValue = computed(() =>
+  props.products.data.reduce((sum, p) => sum + p.stock * p.selling_price, 0)
+)
 
 const columns = [
   { key: 'sku', label: 'SKU', width: 100 },
-  { key: 'name', label: 'Nama Produk', render: (row) => `<strong>${row.name}</strong>` },
+  { key: 'name', label: 'Nama Produk' },
   { key: 'category.name', label: 'Kategori', width: 120 },
   { key: 'unit_quantity.symbol', label: 'Satuan', width: 80, align: 'center' },
-  { key: 'stock', label: 'Stok', width: 80, align: 'center', render: (row) => `<span class="${row.stock <= row.min_stock ? 'text-red-600 font-bold' : 'text-foreground'}">${row.stock}</span>` },
+  { key: 'stock', label: 'Stok', width: 80, align: 'center', render: (row) => `<span class="${row.stock <= row.min_stock ? 'text-red-600 font-bold' : ''}">${row.stock}</span>` },
   { key: 'min_stock', label: 'Min', width: 60, align: 'center' },
   { key: 'cost_price', label: 'Harga Beli', width: 110, align: 'right', render: (row) => 'Rp ' + Number(row.cost_price).toLocaleString('id-ID') },
   { key: 'selling_price', label: 'Harga Jual', width: 110, align: 'right', render: (row) => 'Rp ' + Number(row.selling_price).toLocaleString('id-ID') },
@@ -82,29 +105,18 @@ async function saveAdjustment() {
         router.reload()
       },
       onError: (err) => error(err),
-      onFinish: () => loading.value = false,
+      onFinish: () => { loading.value = false },
     })
   } catch (e) { loading.value = false }
 }
-
-const lowStockProducts = computed(() =>
-  props.products.data.filter(p => p.stock <= p.min_stock)
-)
-
-const totalStockValue = computed(() =>
-  props.products.data.reduce((sum, p) => sum + p.stock * p.cost_price, 0)
-)
-
-const totalSellValue = computed(() =>
-  props.products.data.reduce((sum, p) => sum + p.stock * p.selling_price, 0)
-)
 </script>
+
 <template>
   <AppLayout>
     <template #header>
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-foreground">Manajemen Inventory</h1>
+          <h1 class="text-2xl font-bold">Manajemen Inventory</h1>
           <p class="text-sm text-muted-foreground">{{ props.products.total }} produk • {{ lowStockProducts.length }} stok rendah</p>
         </div>
         <div class="flex gap-2">
@@ -114,70 +126,42 @@ const totalSellValue = computed(() =>
       </div>
     </template>
 
-    <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <Card>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-            <MagnifyingGlassIcon class="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <p class="text-sm text-muted-foreground">Total Produk</p>
-            <p class="text-2xl font-bold text-foreground">{{ props.products.total }}</p>
-          </div>
+          <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><MagnifyingGlassIcon class="w-6 h-6 text-blue-600" /></div>
+          <div><p class="text-sm text-muted-foreground">Total Produk</p><p class="text-2xl font-bold">{{ props.products.total }}</p></div>
         </div>
       </Card>
       <Card>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-            <ExclamationTriangleIcon class="w-6 h-6 text-yellow-600" />
-          </div>
-          <div>
-            <p class="text-sm text-muted-foreground">Stok Rendah</p>
-            <p class="text-2xl font-bold text-yellow-600">{{ lowStockProducts.length }}</p>
-          </div>
+          <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center"><ExclamationTriangleIcon class="w-6 h-6 text-yellow-600" /></div>
+          <div><p class="text-sm text-muted-foreground">Stok Rendah</p><p class="text-2xl font-bold text-yellow-600">{{ lowStockProducts.length }}</p></div>
         </div>
       </Card>
       <Card>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-            <ArrowDownTrayIcon class="w-6 h-6 text-green-600" />
-          </div>
-          <div>
-            <p class="text-sm text-muted-foreground">Nilai Stok (HPP)</p>
-            <p class="text-2xl font-bold text-foreground">Rp {{ Number(totalStockValue).toLocaleString('id-ID') }}</p>
-          </div>
+          <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"><ArrowDownTrayIcon class="w-6 h-6 text-green-600" /></div>
+          <div><p class="text-sm text-muted-foreground">Nilai Stok (HPP)</p><p class="text-2xl font-bold">Rp {{ Number(totalStockValue).toLocaleString('id-ID') }}</p></div>
         </div>
       </Card>
       <Card>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-            <ArrowUpTrayIcon class="w-6 h-6 text-indigo-600" />
-          </div>
-          <div>
-            <p class="text-sm text-muted-foreground">Nilai Stok (Jual)</p>
-            <p class="text-2xl font-bold text-foreground">Rp {{ Number(totalSellValue).toLocaleString('id-ID') }}</p>
-          </div>
+          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center"><ArrowUpTrayIcon class="w-6 h-6 text-indigo-600" /></div>
+          <div><p class="text-sm text-muted-foreground">Nilai Stok (Jual)</p><p class="text-2xl font-bold">Rp {{ Number(totalSellValue).toLocaleString('id-ID') }}</p></div>
         </div>
       </Card>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Product Table -->
-      <Card class="lg:col-span-2" title="Daftar Produk" :headerAction="{ label: 'Adjust Stok', icon: ArrowPathIcon, variant: 'ghost', onClick: () => {} }">
+      <Card class="lg:col-span-2" title="Daftar Produk">
         <div class="flex gap-3 mb-4">
           <div class="flex-1 relative">
-            <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              v-model="search"
-              type="text"
-              placeholder="Cari produk..."
-              class="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <input v-model="search" type="text" placeholder="Cari produk..." class="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
-          <Select v-model="filterType" :options="[{value:'',label:'Semua'},{value:'low',label:'Stok Rendah'},{value:'out',label:'Stok Habis'}]" placeholder="Filter" class="w-40" />
+          <Select v-model="filterType" :options="[{value:'',label:'Semua'},{value:'low',label:'Stok Rendah'},{value:'out',label:'Stok Habis'}]" class="w-40" />
         </div>
-
         <Table
           :columns="columns"
           :data="filteredProducts"
@@ -187,15 +171,14 @@ const totalSellValue = computed(() =>
             page: props.products.current_page,
             perPage: props.products.per_page,
             total: props.products.total,
-            onChange: (p) => router.visit('/inventory', { page: p, search: search.value, filter: filterType.value }, { replace: true })
+            onChange: (p) => router.visit('/inventory', { page: p }, { replace: true })
           }"
           emptyMessage="Belum ada produk"
         />
       </Card>
 
-      <!-- Low Stock Alert -->
-      <Card title="⚠ Produk Stok Rendah" class="lg:col-span-1">
-        <div v-if="lowStockProducts.length === 0" class="text-center py-8 text-green-600">
+      <Card title="Stok Rendah">
+        <div v-if="!lowStockProducts.length" class="text-center py-8 text-green-600">
           <ExclamationTriangleIcon class="w-12 h-12 mx-auto text-green-300 mb-2" />
           <p class="font-medium">Semua stok aman</p>
         </div>
@@ -203,12 +186,12 @@ const totalSellValue = computed(() =>
           <div v-for="p in lowStockProducts" :key="p.id" class="bg-red-50 border border-red-100 rounded-lg p-3">
             <div class="flex items-center justify-between">
               <div class="flex-1 min-w-0">
-                <p class="font-medium text-foreground truncate">{{ p.name }}</p>
+                <p class="font-medium truncate">{{ p.name }}</p>
                 <p class="text-xs text-muted-foreground">{{ p.sku }} • {{ p.category?.name }}</p>
               </div>
               <div class="flex items-center gap-2">
-                <Badge variant="danger" :label="p.stock" />
-                <Badge variant="warning" :label="`Min: ${p.min_stock}`" size="sm" />
+                <Badge variant="danger" :label="String(p.stock)" />
+                <Badge variant="warning" :label="`Min: ${p.min_stock}`" />
               </div>
             </div>
             <div class="flex gap-2 mt-2">
@@ -220,11 +203,10 @@ const totalSellValue = computed(() =>
       </Card>
     </div>
 
-    <!-- Adjust Modal -->
     <Modal v-model="showAdjustModal" title="Adjust Stok" @confirm="saveAdjustment" :loading="loading">
       <div class="space-y-4">
         <div class="bg-muted rounded-lg p-4">
-          <p class="font-medium text-foreground">{{ adjustingProduct?.name }}</p>
+          <p class="font-medium">{{ adjustingProduct?.name }}</p>
           <p class="text-sm text-muted-foreground">{{ adjustingProduct?.sku }} • Stok saat ini: <strong>{{ adjustingProduct?.stock }}</strong></p>
         </div>
         <Select v-model="adjustType" :options="adjustTypeOptions" label="Jenis" />
@@ -234,8 +216,3 @@ const totalSellValue = computed(() =>
     </Modal>
   </AppLayout>
 </template>
-
-<script>
-import { EyeIcon, PencilIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
-export default { components: { EyeIcon, PencilIcon, ArrowPathIcon } }
-</script>
