@@ -24,6 +24,7 @@ class GoogleAuthController extends Controller
     {
         $clientId = config('services.google.client_id');
         $clientSecret = config('services.google.client_secret');
+        $redirectUri = $this->getRedirectUri();
 
         if (! $clientId || ! $clientSecret) {
             return redirect('/login')->withErrors([
@@ -34,13 +35,18 @@ class GoogleAuthController extends Controller
         $state = Str::random(40);
         session(['google_state' => $state]);
 
+        Log::info('Google OAuth redirect', [
+            'client_id' => substr($clientId, 0, 20).'...',
+            'redirect_uri' => $redirectUri,
+        ]);
+
         $url = 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query([
             'client_id' => $clientId,
-            'redirect_uri' => $this->getRedirectUri(),
+            'redirect_uri' => $redirectUri,
             'response_type' => 'code',
             'scope' => 'openid email profile',
             'access_type' => 'offline',
-            'prompt' => 'consent',
+            'prompt' => 'select_account',
             'state' => $state,
         ]);
 
@@ -50,8 +56,13 @@ class GoogleAuthController extends Controller
     public function callback(Request $request)
     {
         if ($request->has('error')) {
+            Log::warning('Google OAuth error from Google', [
+                'error' => $request->input('error'),
+                'error_description' => $request->input('error_description'),
+            ]);
+
             return redirect('/login')->withErrors([
-                'email' => 'Login dibatalkan atau terjadi kesalahan dari Google.',
+                'email' => 'Login dibatalkan atau terjadi kesalahan: '.$request->input('error_description', $request->input('error')),
             ]);
         }
 
@@ -72,8 +83,12 @@ class GoogleAuthController extends Controller
 
         $redirectUri = $this->getRedirectUri();
 
+        Log::info('Google OAuth token exchange', [
+            'redirect_uri' => $redirectUri,
+        ]);
+
         try {
-            $tokenResponse = Http::timeout(10)->asForm()->post('https://oauth2.googleapis.com/token', [
+            $tokenResponse = Http::timeout(15)->asForm()->post('https://oauth2.googleapis.com/token', [
                 'code' => $request->code,
                 'client_id' => config('services.google.client_id'),
                 'client_secret' => config('services.google.client_secret'),
@@ -93,12 +108,20 @@ class GoogleAuthController extends Controller
                 'error' => $tokenResponse->json('error', 'unknown'),
                 'description' => $tokenResponse->json('error_description', ''),
                 'status' => $tokenResponse->status(),
-                'redirect_uri_sent' => $redirectUri,
+                'body' => $tokenResponse->body(),
             ]);
 
-            return redirect('/login')->withErrors([
-                'email' => 'Gagal mendapatkan token dari Google. Silakan coba lagi.',
-            ]);
+            $desc = $tokenResponse->json('error_description', '');
+            $msg = 'Gagal mendapatkan token dari Google.';
+            if (str_contains($desc, 'redirect_uri')) {
+                $msg .= ' Redirect URI tidak cocok dengan Google Console.';
+            } elseif (str_contains($desc, 'invalid_client')) {
+                $msg .= ' Client ID/Secret salah atau belum dikonfigurasi.';
+            } else {
+                $msg .= ' '.$desc;
+            }
+
+            return redirect('/login')->withErrors(['email' => $msg]);
         }
 
         $accessToken = $tokenResponse->json('access_token');
@@ -112,6 +135,11 @@ class GoogleAuthController extends Controller
         }
 
         if ($userInfo->failed()) {
+            Log::warning('Google userinfo failed', [
+                'status' => $userInfo->status(),
+                'body' => $userInfo->body(),
+            ]);
+
             return redirect('/login')->withErrors([
                 'email' => 'Gagal membaca data profil Google.',
             ]);
@@ -168,6 +196,8 @@ class GoogleAuthController extends Controller
                     $user->assignRole('Cashier');
                 }
             }
+
+            Log::info('Google OAuth: new user created', ['user_id' => $user->id, 'email' => $email]);
         }
 
         if (! $user->is_active) {
@@ -178,6 +208,8 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, true);
         $user->update(['last_login_at' => now()]);
+
+        Log::info('Google OAuth: user logged in', ['user_id' => $user->id, 'email' => $email]);
 
         return redirect()->intended('/dashboard');
     }
