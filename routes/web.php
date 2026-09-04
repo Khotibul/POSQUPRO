@@ -43,14 +43,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos/park', [PosController::class, 'parkPage'])->name('pos.park.page');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
 
-    // Products
-    Route::get('/products', function () {
+    // Products - support search/filter params
+    Route::get('/products', function (\Illuminate\Http\Request $request) {
+        $products = Product::with(['category', 'unitQuantity', 'tax', 'supplier'])
+            ->when($request->search, fn ($q, $s) => $q->where(function ($qq) use ($s) {
+                $qq->where('name', 'like', "%{$s}%")
+                    ->orWhere('sku', 'like', "%{$s}%")
+                    ->orWhere('barcode', 'like', "%{$s}%")
+                    ->orWhere('category', 'like', "%{$s}%");
+            }))
+            ->when($request->category_id, fn ($q, $v) => $q->where('category_id', $v))
+            ->when($request->type, fn ($q, $v) => $q->where('type', $v))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
         return Inertia::render('Products/Index', [
-            'products' => Product::with(['category', 'unitQuantity'])->latest()->paginate(15),
+            'products' => $products,
             'categories' => \App\Models\Category::all(),
             'units' => \App\Models\UnitQuantity::all(),
             'taxes' => \App\Models\Tax::all(),
             'suppliers' => \App\Models\Supplier::all(),
+            'filters' => $request->only(['search', 'category_id', 'type']),
         ]);
     })->name('products.index');
 

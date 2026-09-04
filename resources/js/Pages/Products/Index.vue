@@ -25,12 +25,13 @@ const props = defineProps({
   units: { type: Array, default: () => [] },
   taxes: { type: Array, default: () => [] },
   suppliers: { type: Array, default: () => [] },
+  filters: { type: Object, default: () => ({}) },
 })
 
-// State
-const search = ref('')
-const categoryFilter = ref('')
-const typeFilter = ref('')
+// State - init from server-side filters
+const search = ref(props.filters?.search || '')
+const categoryFilter = ref(props.filters?.category_id || '')
+const typeFilter = ref(props.filters?.type || '')
 const showModal = ref(false)
 const editingProduct = ref(null)
 const loading = ref(false)
@@ -55,12 +56,12 @@ const form = ref({
 const columns = computed(() => [
   { key: 'sku', label: 'SKU', width: 110 },
   { key: 'name', label: 'Nama Produk', render: (row) => `<strong>${row.name}</strong>${Number(row.stock) <= Number(row.min_stock) ? '<span class="ml-1 bg-destructive/10 text-destructive text-xs px-1 rounded">Low</span>' : ''}` },
-  { key: 'category', label: 'Kategori', width: 120, render: (row) => row.category?.name || row.category || '-' },
-  { key: 'unit', label: 'Satuan', width: 80, align: 'center', render: (row) => row.unit_quantity?.symbol || row.unit?.name || row.unit_id || '-' },
+  { key: 'category', label: 'Kategori', width: 120, render: (row) => row.category?.name || row.category_text || '-' },
+  { key: 'unit', label: 'Satuan', width: 80, align: 'center', render: (row) => row.unit_quantity?.symbol || row.unit_id || '-' },
   { key: 'selling_price', label: 'Harga Jual', width: 120, align: 'right', render: (row) => 'Rp ' + Number(row.selling_price || row.price || 0).toLocaleString('id-ID') },
   { key: 'cost_price', label: 'Harga Beli', width: 120, align: 'right', render: (row) => 'Rp ' + Number(row.cost_price || row.cost || 0).toLocaleString('id-ID') },
-  { key: 'stock', label: 'Stok', width: 90, align: 'center', render: (row) => `<span class="${Number(row.stock) <= Number(row.min_stock) ? 'text-destructive font-bold' : ''}">${row.stock}</span>` },
-  { key: 'is_active', label: 'Status', width: 90, align: 'center', render: (row) => (row.is_active || row.active) ? '<span class="text-green-600">● Aktif</span>' : '<span class="text-muted-foreground">○ Nonaktif</span>' },
+  { key: 'stock', label: 'Stok', width: 90, align: 'center', render: (row) => `<span class="${Number(row.stock) <= Number(row.min_stock) ? 'text-destructive font-bold' : ''}">${Number(row.stock).toLocaleString('id-ID')}</span>` },
+  { key: 'is_active', label: 'Status', width: 90, align: 'center', render: (row) => (row.is_active ?? row.active) ? '<span class="text-green-600">● Aktif</span>' : '<span class="text-muted-foreground">○ Nonaktif</span>' },
 ])
 
 const actions = [
@@ -86,12 +87,12 @@ function editProduct(product) {
     tax_id: product.tax_id || '',
     supplier_id: product.supplier_id || '',
     type: product.type,
-    cost_price: Number(product.cost_price),
-    selling_price: Number(product.selling_price),
-    stock: product.stock,
-    min_stock: product.min_stock,
+    cost_price: Number(product.cost_price || product.cost || 0),
+    selling_price: Number(product.selling_price || product.price || 0),
+    stock: Number(product.stock || 0),
+    min_stock: Number(product.min_stock || 0),
     description: product.description || '',
-    is_active: product.is_active,
+    is_active: product.is_active ?? product.active ?? true,
   }
   showModal.value = true
 }
@@ -168,12 +169,12 @@ function confirmDelete(product) {
             type="text"
             placeholder="Cari produk (nama/SKU/barcode)..."
             class="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            @keydown.enter="router.visit('/products', { search: search.value, category_id: categoryFilter.value, type: typeFilter.value }, { replace: true })"
+            @keydown.enter="router.get('/products', { search: search, category_id: categoryFilter, type: typeFilter })"
           />
         </div>
         <Select v-model="categoryFilter" :options="[{value:'',label:'Semua Kategori'},...props.categories.map(c=>({value:c.id,label:c.name}))]" placeholder="Kategori" class="w-48" />
         <Select v-model="typeFilter" :options="[{value:'',label:'Semua Tipe'},{value:'raw_material',label:'Bahan Baku'},{value:'finished_goods',label:'Jadi'},{value:'service',label:'Jasa'}]" placeholder="Tipe" class="w-40" />
-        <Button variant="outline" @click="router.visit('/products', { search: search.value, category_id: categoryFilter.value, type: typeFilter.value }, { replace: true })">
+        <Button variant="outline" @click="router.get('/products', { search: search, category_id: categoryFilter, type: typeFilter })">
           <MagnifyingGlassIcon class="w-4 h-4" /> Filter
         </Button>
       </div>
@@ -187,7 +188,7 @@ function confirmDelete(product) {
           page: props.products.current_page,
           perPage: props.products.per_page,
           total: props.products.total,
-          onChange: (p) => router.visit('/products', { page: p, search: search.value, category_id: categoryFilter.value, type: typeFilter.value }, { replace: true })
+          onChange: (p) => router.get('/products', { page: p, search: search, category_id: categoryFilter, type: typeFilter })
         }"
         emptyMessage="Belum ada produk"
       />
