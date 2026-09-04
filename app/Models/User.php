@@ -30,6 +30,15 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Get the password for authentication.
+     * Supports both Java password_hash and Laravel password columns.
+     */
+    public function getAuthPassword(): string
+    {
+        return $this->password ?? $this->password_hash ?? '';
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);

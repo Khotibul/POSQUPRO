@@ -5,7 +5,7 @@ import { computed } from 'vue'
 const page = usePage()
 const flash = computed(() => page.props.flash || {})
 
-const form = useForm({ email: '', password: '' })
+const form = useForm({ email: '', password: '', remember: false })
 function submit() { form.post('/login') }
 
 const googleUrl = '/auth/google/redirect'
@@ -25,7 +25,7 @@ const googleUrl = '/auth/google/redirect'
       <p class="text-center text-muted-foreground text-sm mb-6 font-medium">SIMPLE • SMART • SUCCESS</p>
 
       <!-- Flash error (from Google OAuth) -->
-      <div v-if="flash.error" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+      <div v-if="flash.error" class="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm rounded-lg">
         {{ flash.error }}
       </div>
 
@@ -33,15 +33,21 @@ const googleUrl = '/auth/google/redirect'
       <form @submit.prevent="submit" class="space-y-4">
         <div>
           <label class="text-sm font-medium">Email</label>
-          <input v-model="form.email" type="email" placeholder="email@toko.com"
+          <input v-model="form.email" type="email" placeholder="email@toko.com" autocomplete="email"
             class="w-full px-3 py-2.5 border border-border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" />
           <div v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</div>
         </div>
         <div>
           <label class="text-sm font-medium">Password</label>
-          <input v-model="form.password" type="password" placeholder="••••••••"
+          <input v-model="form.password" type="password" placeholder="••••••••" autocomplete="current-password"
             class="w-full px-3 py-2.5 border border-border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" />
           <div v-if="form.errors.password" class="text-red-500 text-xs mt-1">{{ form.errors.password }}</div>
+        </div>
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+            <input v-model="form.remember" type="checkbox" class="rounded border-border text-primary focus:ring-primary" />
+            Ingat saya
+          </label>
         </div>
         <button :disabled="form.processing" class="w-full bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
           {{ form.processing ? 'Masuk...' : 'Masuk' }}

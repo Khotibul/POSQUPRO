@@ -34,13 +34,21 @@ class GoogleAuthController extends Controller
 
     public function callback(Request $request)
     {
+        if ($request->has('error')) {
+            return redirect('/login')->withErrors([
+                'email' => 'Login dibatalkan atau terjadi kesalahan.',
+            ]);
+        }
+
         $request->validate([
             'code' => 'required|string',
             'state' => 'required|string',
         ]);
 
         if ($request->state !== session('google_state')) {
-            return redirect('/login')->withErrors(['email' => 'Autentikasi gagal. Silakan coba lagi.']);
+            return redirect('/login')->withErrors([
+                'email' => 'Autentikasi gagal. Silakan coba lagi.',
+            ]);
         }
 
         session()->forget('google_state');
@@ -54,7 +62,9 @@ class GoogleAuthController extends Controller
         ]);
 
         if ($tokenResponse->failed()) {
-            return redirect('/login')->withErrors(['email' => 'Gagal mendapatkan token Google.']);
+            return redirect('/login')->withErrors([
+                'email' => 'Gagal mendapatkan token Google. Silakan coba lagi.',
+            ]);
         }
 
         $accessToken = $tokenResponse->json('access_token');
@@ -62,7 +72,9 @@ class GoogleAuthController extends Controller
         $userInfo = Http::withToken($accessToken)->get('https://www.googleapis.com/oauth2/v2/userinfo');
 
         if ($userInfo->failed()) {
-            return redirect('/login')->withErrors(['email' => 'Gagal mendapatkan data akun Google.']);
+            return redirect('/login')->withErrors([
+                'email' => 'Gagal mendapatkan data akun Google.',
+            ]);
         }
 
         $googleUser = $userInfo->json();
@@ -73,20 +85,28 @@ class GoogleAuthController extends Controller
         $emailVerified = $googleUser['verified_email'] ?? false;
 
         if (! $email || ! $emailVerified) {
-            return redirect('/login')->withErrors(['email' => 'Email Google harus terverifikasi.']);
+            return redirect('/login')->withErrors([
+                'email' => 'Email Google harus terverifikasi.',
+            ]);
         }
 
-        $user = User::where('google_id', $googleId)
-            ->orWhere('email', $email)
-            ->first();
+        // Find existing user by google_id or email
+        $user = User::where('google_id', $googleId)->first();
+
+        if (! $user) {
+            $user = User::where('email', $email)->first();
+        }
 
         if ($user) {
+            // Link google_id if not yet linked
             $user->update([
-                'google_id' => $googleId,
+                'google_id' => $user->google_id ?? $googleId,
                 'email_verified_at' => $user->email_verified_at ?? now(),
                 'avatar' => $avatar ?? $user->avatar,
+                'is_active' => true,
             ]);
         } else {
+            // Create new user
             $user = User::create([
                 'name' => $name,
                 'email' => $email,

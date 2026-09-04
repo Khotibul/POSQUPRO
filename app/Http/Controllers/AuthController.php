@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AuthController extends Controller
@@ -15,19 +17,41 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $request->validate([
             'email' => ['required', 'email'],
-            'password' => ['required'],
+            'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
-            $request->user()->update(['last_login_at' => now()]);
+        $user = User::where('email', $request->email)->first();
 
-            return redirect()->intended('/dashboard');
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'email' => ['Email tidak terdaftar.'],
+            ]);
         }
 
-        return back()->withErrors(['email' => 'Email atau password salah.']);
+        if ($user->is_active === false) {
+            throw ValidationException::withMessages([
+                'email' => ['Akun Anda telah dinonaktifkan. Hubungi administrator.'],
+            ]);
+        }
+
+        if (empty($user->password) && empty($user->password_hash)) {
+            throw ValidationException::withMessages([
+                'email' => ['Akun ini hanya bisa masuk melalui Google. Silakan gunakan tombol "Masuk dengan Google".'],
+            ]);
+        }
+
+        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
+                'email' => ['Password salah.'],
+            ]);
+        }
+
+        $request->session()->regenerate();
+        $request->user()->update(['last_login_at' => now()]);
+
+        return redirect()->intended('/dashboard');
     }
 
     public function logout(Request $request)
