@@ -187,7 +187,7 @@ class GoogleAuthController extends Controller
                 'avatar' => $avatar,
                 'email_verified_at' => now(),
                 'is_active' => true,
-                'password' => null,
+                'password_hash' => 'google-oauth',
             ]);
 
             if (class_exists(Role::class)) {

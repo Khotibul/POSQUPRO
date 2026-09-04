@@ -36,9 +36,9 @@ class AuthController extends Controller
             ]);
         }
 
-        if (empty($user->password) && empty($user->password_hash)) {
+        if ($user->google_id && ! $user->password) {
             throw ValidationException::withMessages([
-                'email' => ['Akun ini hanya bisa masuk melalui Google. Silakan gunakan tombol "Masuk dengan Google".'],
+                'email' => ['Akun ini terdaftar via Google. Silakan gunakan tombol "Masuk dengan Google".'],
             ]);
         }
 

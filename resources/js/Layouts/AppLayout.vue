@@ -8,7 +8,7 @@ import AppHeader from '@/Components/Layout/AppHeader.vue'
 import ToastContainer from '@/Components/UI/ToastContainer.vue'
 
 const page = usePage()
-const { navItems, sidebarCollapsed, mobileSidebarOpen, toggleSidebar, closeMobileSidebar } = useAppLayout()
+const { navItems, sidebarCollapsed, mobileSidebarOpen, isMobile, toggleSidebar, closeMobileSidebar } = useAppLayout()
 const { toasts, remove } = useToast()
 
 const user = computed(() => page.props.auth?.user)
@@ -16,7 +16,7 @@ const canAccess = (item) => !item.roles || item.roles.some(r => user.value?.role
 const filteredNav = computed(() => navItems.filter(canAccess))
 
 function handleKeydown(e) {
-  if (e.key.startsWith('F') && e.key.length <= 3) {
+  if (!isMobile.value && e.key.startsWith('F') && e.key.length <= 3) {
     const num = parseInt(e.key.slice(1))
     if (num >= 1 && num <= 12) {
       e.preventDefault()
@@ -24,34 +24,42 @@ function handleKeydown(e) {
       if (item) window.location.href = item.route
     }
   }
-  if (e.key === 'Escape') closeMobileSidebar()
+  if (e.key === 'Escape' && mobileSidebarOpen.value) closeMobileSidebar()
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown))
-onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
+// Close mobile sidebar on Inertia navigation
+function handleInertiaStart() {
+  if (isMobile.value) closeMobileSidebar()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  page.on('start', handleInertiaStart)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  page.on('start', handleInertiaStart)
+})
 </script>
 <template>
   <div class="min-h-screen bg-background flex">
-    <!-- Mobile Overlay -->
-    <div
-      v-if="mobileSidebarOpen"
-      class="fixed inset-0 bg-black/50 z-40 lg:hidden"
-      @click="closeMobileSidebar"
-    />
-
-    <!-- Sidebar -->
+    <!-- Sidebar (includes its own overlay on mobile) -->
     <AppSidebar
       :items="filteredNav"
       :collapsed="sidebarCollapsed"
       :mobile-open="mobileSidebarOpen"
+      :is-mobile="isMobile"
       @toggle="toggleSidebar"
+      @close="closeMobileSidebar"
     />
 
-    <!-- Main Content - fix potong, tidak kosong -->
-    <div class="flex-1 flex flex-col min-h-screen lg:ml-0" :class="{ 'lg:ml-64': !sidebarCollapsed, 'lg:ml-20': sidebarCollapsed }">
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-h-screen transition-[margin] duration-300"
+         :class="isMobile ? '' : (sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64')">
       <AppHeader
         :user="user"
         :sidebar-collapsed="sidebarCollapsed"
+        :is-mobile="isMobile"
         @toggle-sidebar="toggleSidebar"
       />
 
@@ -62,7 +70,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
       <!-- Footer -->
       <footer class="bg-card border-t border-border px-4 sm:px-6 py-3 text-xs text-muted-foreground flex flex-col sm:flex-row justify-between gap-1 sm:gap-0">
-        <span>© 2026 POSQUPRO • SIMPLE • SMART • SUCCESS</span>
+        <span>&copy; 2026 POSQUPRO &bull; SIMPLE &bull; SMART &bull; SUCCESS</span>
         <div class="flex gap-4">
           <span class="hidden sm:inline">F1-F10: Shortcut</span>
           <span class="hidden sm:inline">Esc: Tutup Sidebar</span>
