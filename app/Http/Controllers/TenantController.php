@@ -69,7 +69,9 @@ class TenantController extends Controller
 
         $invoices = $tenant->invoices()->latest()->paginate(10);
 
-        return Inertia::render('Tenants/Show', compact('tenant', 'invoices'));
+        $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
+
+        return Inertia::render('Tenants/Show', compact('tenant', 'invoices', 'plans'));
     }
 
     public function update(Request $request, Tenant $tenant)

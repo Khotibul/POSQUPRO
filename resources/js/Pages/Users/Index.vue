@@ -96,14 +96,14 @@ function confirmDelete(u) {
 
       <Table
         :columns="columns"
-        :data="props.users.data.filter(u => !search.value || u.name.toLowerCase().includes(search.value.toLowerCase()) || u.email?.includes(search.value))"
+        :data="props.users.data.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email?.includes(search))"
         :actions="actions"
         :loading="false"
         :pagination="{
           page: props.users.current_page,
           perPage: props.users.per_page,
           total: props.users.total,
-          onChange: (p) => router.visit('/users', { page: p, search: search.value }, { replace: true })
+          onChange: (p) => router.visit('/users', { page: p, search: search }, { replace: true })
         }"
         emptyMessage="Belum ada pengguna"
       />
@@ -124,8 +124,3 @@ function confirmDelete(u) {
     </Modal>
   </AppLayout>
 </template>
-
-<script>
-import { MagnifyingGlassIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon } from '@heroicons/vue/24/outline'
-export default { components: { MagnifyingGlassIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon } }
-</script>

@@ -121,7 +121,6 @@ async function saveAdjustment() {
         </div>
         <div class="flex gap-2">
           <Button variant="outline" @click="router.visit('/stock-counts')"><ClipboardDocumentListIcon class="w-4 h-4" /> Stock Opname</Button>
-          <Button @click="router.visit('/inventory/histories')"><ArrowPathIcon class="w-4 h-4" /> Riwayat Stok</Button>
         </div>
       </div>
     </template>

@@ -140,6 +140,8 @@ async function togglePaymentMethod(pm) {
 
 // Receipt Preview
 const showReceiptPreview = ref(false)
+
+function printReceipt() { window.print() }
 const receiptPreviewWidth = computed(() => {
   const w = Number(printerForm.value['printer.paper.width']) || 80
   return Math.max(280, Math.min(800, w * (80 / 30)))
@@ -456,7 +458,7 @@ const receiptPreviewWidth = computed(() => {
         </div>
         <div class="px-6 py-3 border-t border-border flex justify-end gap-2">
           <button @click="showReceiptPreview = false" class="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent">Tutup</button>
-          <button @click="window.print()" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90">Cetak</button>
+          <button @click="printReceipt" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90">Cetak</button>
         </div>
       </div>
     </div>

@@ -17,6 +17,21 @@ class DashboardController extends Controller
             'low_stock_count' => Product::whereColumn('stock', '<=', 'min_stock')->count(),
         ];
 
-        return Inertia::render('Dashboard/Index', ['stats' => $stats]);
+        $recentTransactions = Transaction::with(['customer', 'user'])
+            ->whereDate('created_at', today())
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        $lowStockProducts = Product::whereColumn('stock', '<=', 'min_stock')
+            ->orderBy('stock')
+            ->limit(10)
+            ->get();
+
+        return Inertia::render('Dashboard/Index', [
+            'stats' => $stats,
+            'recentTransactions' => $recentTransactions,
+            'lowStockProducts' => $lowStockProducts,
+        ]);
     }
 }

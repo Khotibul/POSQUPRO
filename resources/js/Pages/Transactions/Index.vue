@@ -43,15 +43,6 @@ const columns = [
 
 const actions = [
   { label: 'Detail', icon: EyeIcon, variant: 'ghost', onClick: (row) => { selectedTx.value = row; showDetail.value = true } },
-  { label: 'Cetak', icon: PrinterIcon, variant: 'ghost', onClick: (row) => window.open(`/transactions/${row.id}/print`, '_blank'), show: (row) => row.status === 'completed' },
-  { label: 'Void', icon: TrashIcon, variant: 'danger', onClick: (row) => {
-    if (confirm(`Batalkan transaksi ${row.invoice_number}? Stok akan dikembalikan.`)) {
-      router.post(`/api/v1/transactions/${row.id}/void`, {}, {
-        onSuccess: () => { success('Transaksi dibatalkan'); router.reload() },
-        onError: (err) => error(err),
-      })
-    }
-  }, show: (row) => row.status !== 'cancelled' },
 ]
 
 const filteredData = computed(() =>

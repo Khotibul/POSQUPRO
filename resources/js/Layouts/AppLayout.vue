@@ -56,6 +56,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
       />
 
       <main class="flex-1 p-4 lg:p-6 overflow-auto bg-muted/30 min-h-[calc(100vh-4rem)]">
+        <slot name="header" />
         <slot />
       </main>
 

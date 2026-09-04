@@ -170,21 +170,21 @@ const form = ref({
           />
         </div>
         <Select v-model="statusFilter" :options="[{value:'',label:'Semua'},{value:'draft',label:'Draft'},{value:'ordered',label:'Ordered'},{value:'partial',label:'Partial'},{value:'received',label:'Received'},{value:'cancelled',label:'Cancelled'}]" placeholder="Status" class="w-36" />
-        <Button variant="outline" @click="router.visit('/purchase-orders', { search: search.value, status: statusFilter.value }, { replace: true })">
+        <Button variant="outline" @click="router.visit('/purchase-orders', { search: search, status: statusFilter }, { replace: true })">
           <MagnifyingGlassIcon class="w-4 h-4" /> Filter
         </Button>
       </div>
 
       <Table
         :columns="columns"
-        :data="props.purchaseOrders.data.filter(p => !search.value || p.po_number.toLowerCase().includes(search.value.toLowerCase()))"
+        :data="props.purchaseOrders.data.filter(p => !search || p.po_number.toLowerCase().includes(search.toLowerCase()))"
         :actions="actions"
         :loading="loading"
         :pagination="{
           page: props.purchaseOrders.current_page,
           perPage: props.purchaseOrders.per_page,
           total: props.purchaseOrders.total,
-          onChange: (p) => router.visit('/purchase-orders', { page: p, search: search.value, status: statusFilter.value }, { replace: true })
+          onChange: (p) => router.visit('/purchase-orders', { page: p, search: search, status: statusFilter }, { replace: true })
         }"
         emptyMessage="Belum ada PO"
       />

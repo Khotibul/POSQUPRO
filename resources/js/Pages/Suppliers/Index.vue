@@ -92,14 +92,14 @@ function confirmDelete(s) {
 
       <Table
         :columns="columns"
-        :data="props.suppliers.data.filter(s => !search.value || s.name.toLowerCase().includes(search.value.toLowerCase()) || s.phone?.includes(search.value))"
+        :data="props.suppliers.data.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.phone?.includes(search))"
         :actions="actions"
         :loading="false"
         :pagination="{
           page: props.suppliers.current_page,
           perPage: props.suppliers.per_page,
           total: props.suppliers.total,
-          onChange: (p) => router.visit('/suppliers', { page: p, search: search.value }, { replace: true })
+          onChange: (p) => router.visit('/suppliers', { page: p, search: search }, { replace: true })
         }"
         emptyMessage="Belum ada supplier"
       />
