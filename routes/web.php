@@ -150,6 +150,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::get('/stock-counts', [StockCountController::class, 'index'])->name('stock-counts.index');
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [SettingController::class, 'updateGroup'])->name('settings.updateGroup');
+    Route::post('/settings/tax', [SettingController::class, 'storeTax'])->name('settings.storeTax');
+    Route::put('/settings/tax/{id}', [SettingController::class, 'updateTax'])->name('settings.updateTax');
+    Route::delete('/settings/tax/{id}', [SettingController::class, 'destroyTax'])->name('settings.destroyTax');
+    Route::put('/settings/payment-method/{id}', [SettingController::class, 'updatePaymentMethod'])->name('settings.updatePaymentMethod');
 
     // Master data - tampil sesuai DB posqu_pro_desktop (dedicated pages)
     Route::get('/categories', function () {
