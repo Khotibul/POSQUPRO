@@ -137,5 +137,10 @@ Route::middleware('auth')->group(function () {
     })->name('units.index');
     Route::get('/taxes', fn () => Inertia::render('Taxes/Index', ['taxes' => \App\Models\Tax::paginate(15)]))->name('taxes.index');
     Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => \App\Models\Branch::with('warehouses')->paginate(15)]))->name('branches.index');
-    Route::get('/warehouses', fn () => Inertia::render('Warehouses/Index', ['warehouses' => \App\Models\Warehouse::with('branch')->paginate(15)]))->name('warehouses.index');
+    Route::get('/warehouses', function () {
+        return Inertia::render('Warehouses/Index', [
+            'warehouses' => \App\Models\Warehouse::with('branch')->paginate(15),
+            'branches' => \App\Models\Branch::select('id', 'name', 'code')->get(),
+        ]);
+    })->name('warehouses.index');
 });
