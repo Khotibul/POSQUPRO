@@ -59,12 +59,12 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
         <slot />
       </main>
 
-      <!-- Footer shadcn -->
-      <footer class="bg-card border-t border-border px-6 py-3 text-xs text-muted-foreground flex justify-between">
+      <!-- Footer -->
+      <footer class="bg-card border-t border-border px-4 sm:px-6 py-3 text-xs text-muted-foreground flex flex-col sm:flex-row justify-between gap-1 sm:gap-0">
         <span>© 2026 POSQUPRO • SIMPLE • SMART • SUCCESS</span>
         <div class="flex gap-4">
-          <span>F1-F10: Shortcut</span>
-          <span>Esc: Tutup Sidebar</span>
+          <span class="hidden sm:inline">F1-F10: Shortcut</span>
+          <span class="hidden sm:inline">Esc: Tutup Sidebar</span>
         </div>
       </footer>
     </div>

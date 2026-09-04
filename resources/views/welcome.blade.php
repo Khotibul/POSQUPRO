@@ -4,22 +4,21 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ config('app.name', 'POSQUPRO') }} — SIMPLE • SMART • SUCCESS</title>
-        <meta name="description" content="POSQUPRO - Point of Sale modern untuk UMKM, retail & resto. SIMPLE • SMART • SUCCESS. Laravel 13 + Vue 3 + MySQL.">
+        <meta name="description" content="POSQUPRO - Point of Sale modern untuk UMKM, retail & resto. SIMPLE • SMART • SUCCESS.">
         <link rel="icon" href="/logo.png" type="image/png">
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="bg-background text-foreground antialiased">
-        <!-- Header pos-next-js shadcn -->
+        <!-- Header -->
         <header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div class="container mx-auto max-w-7xl flex h-16 items-center justify-between px-4 lg:px-8">
+            <div class="container mx-auto max-w-7xl flex h-14 sm:h-16 items-center justify-between px-4 lg:px-8">
                 <div class="flex items-center gap-2">
-                    <img src="/logo.png" alt="POSQUPRO" class="h-8 w-auto object-contain" />
+                    <img src="/logo.png" alt="POSQUPRO" class="h-7 sm:h-8 w-auto object-contain" />
                     <span class="hidden font-bold sm:inline-block">POSQUPRO</span>
                 </div>
                 <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
                     <a href="#features" class="hover:text-foreground transition-colors">Fitur</a>
                     <a href="#pricing" class="hover:text-foreground transition-colors">Harga</a>
-                    <a href="https://github.com" target="_blank" class="hover:text-foreground transition-colors">Docs</a>
                 </nav>
                 <div class="flex items-center gap-2">
                     @auth
@@ -27,38 +26,38 @@
                             Dashboard
                         </a>
                     @else
-                        <a href="{{ route('login') }}" class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-                            Log in
+                        <a href="{{ url('/login') }}" class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                            Masuk
                         </a>
-                        <a href="{{ route('login') }}" class="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                            Masuk POS
+                        <a href="{{ url('/login') }}" class="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                            Daftar Sekarang
                         </a>
                     @endauth
                 </div>
             </div>
         </header>
 
-        <!-- Hero pos-next-js -->
-        <section class="container mx-auto max-w-7xl px-4 lg:px-8 py-12 lg:py-20">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div class="space-y-6">
+        <!-- Hero -->
+        <section class="container mx-auto max-w-7xl px-4 lg:px-8 py-10 sm:py-12 lg:py-20">
+            <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                <div class="space-y-5 sm:space-y-6">
                     <div class="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium">
                         <span class="mr-2 h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-                        v{{ app()->version() }} • Laravel 13 + Vue 3 + MySQL
+                        POS Modern untuk UMKM
                     </div>
-                    <h1 class="text-4xl lg:text-5xl font-bold tracking-tight">
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
                         POS Modern untuk
                         <span class="text-primary">UMKM, Retail & Resto</span>
                     </h1>
-                    <p class="text-lg text-muted-foreground max-w-[600px]">
-                        <span class="font-semibold text-foreground">SIMPLE • SMART • SUCCESS</span> — Kelola POS kasir, inventory real-time, laporan analytics, dan multi-cabang dalam satu dashboard shadcn yang cepat.
+                    <p class="text-base sm:text-lg text-muted-foreground max-w-[600px]">
+                        <span class="font-semibold text-foreground">SIMPLE • SMART • SUCCESS</span> — Kelola POS kasir, inventory real-time, laporan analytics, dan multi-cabang dalam satu dashboard yang cepat.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-3">
-                        <a href="{{ url('/dashboard') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                            Buka Dashboard →
+                        <a href="{{ url('/login') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                            Mulai Gratis →
                         </a>
-                        <a href="{{ url('/pos') }}" class="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-                            Coba POS Kasir
+                        <a href="#features" class="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                            Lihat Fitur
                         </a>
                     </div>
                     <div class="flex items-center gap-4 text-sm text-muted-foreground pt-2">
@@ -68,8 +67,8 @@
                             <div class="h-8 w-8 rounded-full bg-primary/30 border-2 border-background flex items-center justify-center text-xs font-medium">W</div>
                         </div>
                         <span>Dipercaya 500+ toko</span>
-                        <span class="h-4 w-px bg-border"></span>
-                        <span>4.9/5 ★★★★★</span>
+                        <span class="h-4 w-px bg-border hidden sm:block"></span>
+                        <span class="hidden sm:inline">4.9/5 ★★★★★</span>
                     </div>
                 </div>
                 <div class="relative lg:h-[480px]">
@@ -81,24 +80,24 @@
                                 <div class="h-3 w-3 rounded-full bg-yellow-500"></div>
                                 <div class="h-3 w-3 rounded-full bg-green-500"></div>
                             </div>
-                            <span class="ml-2 text-xs text-muted-foreground">POSQUPRO • Dashboard</span>
+                            <span class="ml-2 text-xs text-muted-foreground">POSQUPRO Dashboard</span>
                         </div>
-                        <img src="/logo.png" alt="POSQUPRO Dashboard" class="w-full h-auto object-contain p-8 bg-gradient-to-br from-card to-muted/20" />
-                        <div class="grid grid-cols-3 gap-3 p-4 bg-muted/30">
-                            <div class="bg-card border border-border rounded-lg p-3">
-                                <p class="text-xs text-muted-foreground">Hari Ini</p>
-                                <p class="font-bold">Rp 2.4jt</p>
-                                <p class="text-xs text-green-600">+12%</p>
+                        <img src="/logo.png" alt="POSQUPRO Dashboard" class="w-full h-auto object-contain p-6 sm:p-8 bg-gradient-to-br from-card to-muted/20" />
+                        <div class="grid grid-cols-3 gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/30">
+                            <div class="bg-card border border-border rounded-lg p-2 sm:p-3">
+                                <p class="text-[10px] sm:text-xs text-muted-foreground">Hari Ini</p>
+                                <p class="text-sm sm:text-base font-bold">Rp 2.4jt</p>
+                                <p class="text-[10px] sm:text-xs text-green-600">+12%</p>
                             </div>
-                            <div class="bg-card border border-border rounded-lg p-3">
-                                <p class="text-xs text-muted-foreground">Transaksi</p>
-                                <p class="font-bold">48</p>
-                                <p class="text-xs text-green-600">+8%</p>
+                            <div class="bg-card border border-border rounded-lg p-2 sm:p-3">
+                                <p class="text-[10px] sm:text-xs text-muted-foreground">Transaksi</p>
+                                <p class="text-sm sm:text-base font-bold">48</p>
+                                <p class="text-[10px] sm:text-xs text-green-600">+8%</p>
                             </div>
-                            <div class="bg-card border border-border rounded-lg p-3">
-                                <p class="text-xs text-muted-foreground">Stok Rendah</p>
-                                <p class="font-bold text-destructive">5</p>
-                                <p class="text-xs text-muted-foreground">Perlu restock</p>
+                            <div class="bg-card border border-border rounded-lg p-2 sm:p-3">
+                                <p class="text-[10px] sm:text-xs text-muted-foreground">Stok Rendah</p>
+                                <p class="text-sm sm:text-base font-bold text-destructive">5</p>
+                                <p class="text-[10px] sm:text-xs text-muted-foreground">Perlu restock</p>
                             </div>
                         </div>
                     </div>
@@ -106,13 +105,13 @@
             </div>
         </section>
 
-        <!-- Features pos-next-js 6 grid -->
-        <section id="features" class="container mx-auto max-w-7xl px-4 lg:px-8 py-16 border-t border-border">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <h2 class="text-3xl font-bold tracking-tight">Fitur Lengkap POS Modern</h2>
-                <p class="text-muted-foreground mt-2">Semua yang dibutuhkan toko Anda, dari kasir hingga laporan, dalam satu aplikasi.</p>
+        <!-- Features -->
+        <section id="features" class="container mx-auto max-w-7xl px-4 lg:px-8 py-12 sm:py-16 border-t border-border">
+            <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+                <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Fitur Lengkap POS Modern</h2>
+                <p class="text-muted-foreground mt-2 text-sm sm:text-base">Semua yang dibutuhkan toko Anda, dari kasir hingga laporan, dalam satu aplikasi.</p>
             </div>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 @php
                     $features = [
                         ['title' => 'POS Kasir Cepat', 'desc' => 'Barcode scan, keranjang, diskon, split payment (cash/card/QRIS), cetak struk thermal.', 'icon' => 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'],
@@ -124,7 +123,7 @@
                     ];
                 @endphp
                 @foreach ($features as $f)
-                    <div class="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
+                    <div class="bg-card border border-border rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow">
                         <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                             <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $f['icon'] }}"/></svg>
                         </div>
@@ -136,99 +135,101 @@
         </section>
 
         <!-- Pricing — Dynamic from DB -->
-        <section id="pricing" class="container mx-auto max-w-7xl px-4 lg:px-8 py-16 border-t border-border bg-muted/20 -mx-4 lg:-mx-8 px-4 lg:px-8">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <h2 class="text-3xl font-bold">Harga Simpel</h2>
-                <p class="text-muted-foreground mt-2">Mulai gratis, scale sesuai kebutuhan toko Anda.</p>
-            </div>
-            @php
-                try {
-                    $plans = \App\Models\Plan::where('is_active', true)->orderBy('sort_order')->get();
-                } catch (\Exception $e) {
-                    $plans = collect();
-                }
-                $popularIndex = $plans->search(fn($p) => $p->slug === 'pro') ?? 1;
-            @endphp
-            <div class="grid md:grid-cols-{{ min($plans->count(), 4) }} gap-6 max-w-5xl mx-auto">
-                @foreach($plans as $i => $plan)
-                    @php
-                        $isPopular = $i === $popularIndex;
-                        $priceFormatted = number_format($plan->price, 0, ',', '.');
-                        $yearlyFormatted = $plan->price_yearly ? number_format($plan->price_yearly, 0, ',', '.') : null;
-                        $features = $plan->features ?? [];
-                        $featureLabels = [
-                            'pos' => 'POS Kasir',
-                            'products' => 'Manajemen Produk',
-                            'inventory' => 'Inventory & Stok',
-                            'reports' => 'Laporan Analytics',
-                            'purchase_orders' => 'Purchase Order',
-                            'stock_counts' => 'Stock Opname',
-                            'multi_branch' => 'Multi Cabang',
-                            'api_access' => 'API Access',
-                            'priority_support' => 'Support Prioritas',
-                        ];
-                    @endphp
-                    <div class="bg-card border {{ $isPopular ? 'border-2 border-primary shadow-lg' : 'border-border' }} rounded-xl p-6 {{ $isPopular ? 'relative' : '' }}">
-                        @if($isPopular)
-                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">Populer</div>
-                        @endif
-                        <h3 class="font-semibold">{{ $plan->name }}</h3>
-                        @if($plan->price <= 0)
-                            <p class="text-3xl font-bold mt-2">Gratis</p>
-                        @else
-                            <p class="text-3xl font-bold mt-2">Rp {{ $priceFormatted }} <span class="text-sm font-normal text-muted-foreground">/bulan</span></p>
-                            @if($yearlyFormatted)
-                                <p class="text-xs text-green-600">Tahunan: Rp {{ $yearlyFormatted }}/tahun</p>
+        <section id="pricing" class="py-12 sm:py-16 border-t border-border bg-muted/20">
+            <div class="container mx-auto max-w-7xl px-4 lg:px-8">
+                <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+                    <h2 class="text-2xl sm:text-3xl font-bold">Harga Simpel</h2>
+                    <p class="text-muted-foreground mt-2 text-sm sm:text-base">Mulai gratis, scale sesuai kebutuhan toko Anda.</p>
+                </div>
+                @php
+                    try {
+                        $plans = \App\Models\Plan::where('is_active', true)->orderBy('sort_order')->get();
+                    } catch (\Exception $e) {
+                        $plans = collect();
+                    }
+                    $popularIndex = $plans->search(fn($p) => $p->slug === 'pro') ?? 1;
+                @endphp
+                <div class="grid sm:grid-cols-2 lg:grid-cols-{{ min($plans->count(), 4) }} gap-4 sm:gap-6 max-w-5xl mx-auto">
+                    @foreach($plans as $i => $plan)
+                        @php
+                            $isPopular = $i === $popularIndex;
+                            $priceFormatted = number_format($plan->price, 0, ',', '.');
+                            $yearlyFormatted = $plan->price_yearly ? number_format($plan->price_yearly, 0, ',', '.') : null;
+                            $features = $plan->features ?? [];
+                            $featureLabels = [
+                                'pos' => 'POS Kasir',
+                                'products' => 'Manajemen Produk',
+                                'inventory' => 'Inventory & Stok',
+                                'reports' => 'Laporan Analytics',
+                                'purchase_orders' => 'Purchase Order',
+                                'stock_counts' => 'Stock Opname',
+                                'multi_branch' => 'Multi Cabang',
+                                'api_access' => 'API Access',
+                                'priority_support' => 'Support Prioritas',
+                            ];
+                        @endphp
+                        <div class="bg-card border {{ $isPopular ? 'border-2 border-primary shadow-lg' : 'border-border' }} rounded-xl p-5 sm:p-6 {{ $isPopular ? 'relative' : '' }}">
+                            @if($isPopular)
+                                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">Populer</div>
                             @endif
-                        @endif
-                        <p class="text-sm text-muted-foreground">{{ $plan->description }}</p>
-                        <ul class="mt-4 space-y-2 text-sm {{ $plan->price > 0 ? '' : 'text-muted-foreground' }}">
-                            <li>✓ {{ $plan->max_users }} User • {{ number_format($plan->max_products) }} Produk</li>
-                            <li>✓ {{ $plan->max_branches }} Cabang</li>
-                            @if($plan->trial_days > 0)
-                                <li>✓ {{ $plan->trial_days }} Hari Trial</li>
-                            @endif
-                            @foreach($features as $f)
-                                @if(isset($featureLabels[$f]))
-                                    <li>✓ {{ $featureLabels[$f] }}</li>
+                            <h3 class="font-semibold">{{ $plan->name }}</h3>
+                            @if($plan->price <= 0)
+                                <p class="text-3xl font-bold mt-2">Gratis</p>
+                            @else
+                                <p class="text-3xl font-bold mt-2">Rp {{ $priceFormatted }} <span class="text-sm font-normal text-muted-foreground">/bulan</span></p>
+                                @if($yearlyFormatted)
+                                    <p class="text-xs text-green-600">Tahunan: Rp {{ $yearlyFormatted }}/tahun</p>
                                 @endif
-                            @endforeach
-                        </ul>
-                        @if($plan->price <= 0)
-                            <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
-                        @elseif($isPopular)
-                            <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih {{ $plan->name }}</a>
-                        @else
-                            <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Pilih {{ $plan->name }}</a>
-                        @endif
-                    </div>
-                @endforeach
+                            @endif
+                            <p class="text-sm text-muted-foreground">{{ $plan->description }}</p>
+                            <ul class="mt-4 space-y-2 text-sm {{ $plan->price > 0 ? '' : 'text-muted-foreground' }}">
+                                <li>✓ {{ $plan->max_users }} User • {{ number_format($plan->max_products) }} Produk</li>
+                                <li>✓ {{ $plan->max_branches }} Cabang</li>
+                                @if($plan->trial_days > 0)
+                                    <li>✓ {{ $plan->trial_days }} Hari Trial</li>
+                                @endif
+                                @foreach($features as $f)
+                                    @if(isset($featureLabels[$f]))
+                                        <li>✓ {{ $featureLabels[$f] }}</li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                            @if($plan->price <= 0)
+                                <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
+                            @elseif($isPopular)
+                                <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih {{ $plan->name }}</a>
+                            @else
+                                <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Pilih {{ $plan->name }}</a>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </section>
 
         <!-- CTA -->
-        <section class="container mx-auto max-w-7xl px-4 lg:px-8 py-16">
-            <div class="bg-primary text-primary-foreground rounded-2xl p-8 lg:p-12 text-center">
-                <h2 class="text-3xl font-bold">Siap Scale Toko Anda?</h2>
-                <p class="text-primary-foreground/80 mt-2 max-w-2xl mx-auto">Bergabung dengan 500+ pemilik toko yang sudah pakai POSQUPRO. Setup 2 menit, langsung jualan.</p>
+        <section class="container mx-auto max-w-7xl px-4 lg:px-8 py-12 sm:py-16">
+            <div class="bg-primary text-primary-foreground rounded-2xl p-6 sm:p-8 lg:p-12 text-center">
+                <h2 class="text-2xl sm:text-3xl font-bold">Siap Scale Toko Anda?</h2>
+                <p class="text-primary-foreground/80 mt-2 max-w-2xl mx-auto text-sm sm:text-base">Bergabung dengan 500+ pemilik toko yang sudah pakai POSQUPRO. Setup 2 menit, langsung jualan.</p>
                 <div class="flex flex-col sm:flex-row gap-3 justify-center mt-6">
-                    <a href="{{ url('/dashboard') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-background text-foreground px-8 font-medium hover:bg-background/90">Buka Dashboard</a>
-                    <a href="{{ url('/pos') }}" class="inline-flex h-11 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary px-8 font-medium hover:bg-primary-foreground/10">Coba POS Sekarang</a>
+                    <a href="{{ url('/login') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-background text-foreground px-8 font-medium hover:bg-background/90">Daftar Gratis</a>
+                    <a href="#features" class="inline-flex h-11 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary px-8 font-medium hover:bg-primary-foreground/10">Pelajari Fitur</a>
                 </div>
             </div>
         </section>
 
         <!-- Footer -->
-        <footer class="border-t border-border py-8">
-            <div class="container mx-auto max-w-7xl px-4 lg:px-8 flex flex-col md:flex-row justify-between gap-4 text-sm text-muted-foreground">
+        <footer class="border-t border-border py-6 sm:py-8">
+            <div class="container mx-auto max-w-7xl px-4 lg:px-8 flex flex-col sm:flex-row justify-between gap-4 text-sm text-muted-foreground">
                 <div class="flex items-center gap-2">
                     <img src="/logo.png" alt="POSQUPRO" class="h-6 w-auto" />
                     <span>© 2026 POSQUPRO • SIMPLE • SMART • SUCCESS</span>
                 </div>
                 <div class="flex gap-6">
-                    <a href="{{ url('/login') }}" class="hover:text-foreground">Login</a>
-                    <a href="{{ url('/pos') }}" class="hover:text-foreground">POS</a>
-                    <a href="{{ url('/reports') }}" class="hover:text-foreground">Laporan</a>
+                    <a href="{{ url('/login') }}" class="hover:text-foreground">Masuk</a>
+                    <a href="#features" class="hover:text-foreground">Fitur</a>
+                    <a href="#pricing" class="hover:text-foreground">Harga</a>
                 </div>
             </div>
         </footer>

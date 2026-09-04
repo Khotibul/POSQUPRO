@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ParkedTransactionController;
 use App\Http\Controllers\PlanController;
@@ -44,6 +45,10 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
+
+    // Google OAuth
+    Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
 });
 
 // Protected (mirip pos-next-js (private) group - requires auth)
