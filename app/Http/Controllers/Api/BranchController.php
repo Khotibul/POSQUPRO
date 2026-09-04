@@ -15,6 +15,15 @@ class BranchController extends Controller
 
     public function store(Request $request)
     {
+        // Check plan limit
+        $planService = app(\App\Services\PlanService::class);
+        if (!$planService->canAddBranch()) {
+            return response()->json([
+                'message' => 'Batas maksimal cabang tercapai. Upgrade paket Anda.',
+                'limits' => $planService->getLimitsSummary(),
+            ], 403);
+        }
+
         $data = $request->validate(['code' => ['required', 'string', 'unique:branches,code'], 'name' => ['required', 'string'], 'address' => ['nullable', 'string'], 'phone' => ['nullable', 'string'], 'active' => ['boolean']]);
         return Branch::create($data);
     }

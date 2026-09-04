@@ -135,48 +135,74 @@
             </div>
         </section>
 
-        <!-- Pricing pos-next-js -->
+        <!-- Pricing — Dynamic from DB -->
         <section id="pricing" class="container mx-auto max-w-7xl px-4 lg:px-8 py-16 border-t border-border bg-muted/20 -mx-4 lg:-mx-8 px-4 lg:px-8">
             <div class="text-center max-w-2xl mx-auto mb-10">
                 <h2 class="text-3xl font-bold">Harga Simpel</h2>
                 <p class="text-muted-foreground mt-2">Mulai gratis, scale sesuai kebutuhan toko Anda.</p>
             </div>
-            <div class="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                <div class="bg-card border border-border rounded-xl p-6">
-                    <h3 class="font-semibold">Starter</h3>
-                    <p class="text-3xl font-bold mt-2">Gratis</p>
-                    <p class="text-sm text-muted-foreground">Untuk 1 toko kecil</p>
-                    <ul class="mt-4 space-y-2 text-sm text-muted-foreground">
-                        <li>✓ 1 Kasir • 100 Produk</li>
-                        <li>✓ POS & Inventory dasar</li>
-                        <li>✓ Laporan harian</li>
-                    </ul>
-                    <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
-                </div>
-                <div class="bg-card border-2 border-primary rounded-xl p-6 shadow-lg relative">
-                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">Populer</div>
-                    <h3 class="font-semibold">Pro</h3>
-                    <p class="text-3xl font-bold mt-2">Rp 149k <span class="text-sm font-normal text-muted-foreground">/bulan</span></p>
-                    <p class="text-sm text-muted-foreground">Untuk retail & resto</p>
-                    <ul class="mt-4 space-y-2 text-sm">
-                        <li>✓ Unlimited Produk & Transaksi</li>
-                        <li>✓ Multi Cabang & Gudang</li>
-                        <li>✓ Laporan Lengkap + Export</li>
-                        <li>✓ Support Prioritas</li>
-                    </ul>
-                    <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih Pro</a>
-                </div>
-                <div class="bg-card border border-border rounded-xl p-6">
-                    <h3 class="font-semibold">Enterprise</h3>
-                    <p class="text-3xl font-bold mt-2">Custom</p>
-                    <p class="text-sm text-muted-foreground">Untuk franchise</p>
-                    <ul class="mt-4 space-y-2 text-sm text-muted-foreground">
-                        <li>✓ Multi Toko Unlimited</li>
-                        <li>✓ API & Integrasi</li>
-                        <li>✓ On-premise + Training</li>
-                    </ul>
-                    <a href="mailto:hello@posqupro.id" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Hubungi Sales</a>
-                </div>
+            @php
+                try {
+                    $plans = \App\Models\Plan::where('is_active', true)->orderBy('sort_order')->get();
+                } catch (\Exception $e) {
+                    $plans = collect();
+                }
+                $popularIndex = $plans->search(fn($p) => $p->slug === 'pro') ?? 1;
+            @endphp
+            <div class="grid md:grid-cols-{{ min($plans->count(), 4) }} gap-6 max-w-5xl mx-auto">
+                @foreach($plans as $i => $plan)
+                    @php
+                        $isPopular = $i === $popularIndex;
+                        $priceFormatted = number_format($plan->price, 0, ',', '.');
+                        $yearlyFormatted = $plan->price_yearly ? number_format($plan->price_yearly, 0, ',', '.') : null;
+                        $features = $plan->features ?? [];
+                        $featureLabels = [
+                            'pos' => 'POS Kasir',
+                            'products' => 'Manajemen Produk',
+                            'inventory' => 'Inventory & Stok',
+                            'reports' => 'Laporan Analytics',
+                            'purchase_orders' => 'Purchase Order',
+                            'stock_counts' => 'Stock Opname',
+                            'multi_branch' => 'Multi Cabang',
+                            'api_access' => 'API Access',
+                            'priority_support' => 'Support Prioritas',
+                        ];
+                    @endphp
+                    <div class="bg-card border {{ $isPopular ? 'border-2 border-primary shadow-lg' : 'border-border' }} rounded-xl p-6 {{ $isPopular ? 'relative' : '' }}">
+                        @if($isPopular)
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">Populer</div>
+                        @endif
+                        <h3 class="font-semibold">{{ $plan->name }}</h3>
+                        @if($plan->price <= 0)
+                            <p class="text-3xl font-bold mt-2">Gratis</p>
+                        @else
+                            <p class="text-3xl font-bold mt-2">Rp {{ $priceFormatted }} <span class="text-sm font-normal text-muted-foreground">/bulan</span></p>
+                            @if($yearlyFormatted)
+                                <p class="text-xs text-green-600">Tahunan: Rp {{ $yearlyFormatted }}/tahun</p>
+                            @endif
+                        @endif
+                        <p class="text-sm text-muted-foreground">{{ $plan->description }}</p>
+                        <ul class="mt-4 space-y-2 text-sm {{ $plan->price > 0 ? '' : 'text-muted-foreground' }}">
+                            <li>✓ {{ $plan->max_users }} User • {{ number_format($plan->max_products) }} Produk</li>
+                            <li>✓ {{ $plan->max_branches }} Cabang</li>
+                            @if($plan->trial_days > 0)
+                                <li>✓ {{ $plan->trial_days }} Hari Trial</li>
+                            @endif
+                            @foreach($features as $f)
+                                @if(isset($featureLabels[$f]))
+                                    <li>✓ {{ $featureLabels[$f] }}</li>
+                                @endif
+                            @endforeach
+                        </ul>
+                        @if($plan->price <= 0)
+                            <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
+                        @elseif($isPopular)
+                            <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih {{ $plan->name }}</a>
+                        @else
+                            <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Pilih {{ $plan->name }}</a>
+                        @endif
+                    </div>
+                @endforeach
             </div>
         </section>
 

@@ -21,6 +21,15 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        // Check plan limit
+        $planService = app(\App\Services\PlanService::class);
+        if (!$planService->canAddProduct()) {
+            return response()->json([
+                'message' => 'Batas maksimal produk tercapai. Upgrade paket Anda untuk menambah produk.',
+                'limits' => $planService->getLimitsSummary(),
+            ], 403);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'unique:products,sku'],
