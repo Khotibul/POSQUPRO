@@ -6,24 +6,39 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
+use Throwable;
 
 class GoogleAuthController extends Controller
 {
+    private function getRedirectUri(): string
+    {
+        $configUri = config('services.google.redirect_uri');
+
+        return $configUri ? url($configUri) : route('google.callback');
+    }
+
     public function redirect()
     {
         $clientId = config('services.google.client_id');
-        $redirectUri = route('google.callback');
-        $scopes = urlencode('openid email profile');
-        $state = Str::random(40);
+        $clientSecret = config('services.google.client_secret');
 
+        if (! $clientId || ! $clientSecret) {
+            return redirect('/login')->withErrors([
+                'email' => 'Google OAuth belum dikonfigurasi. Silakan login manual.',
+            ]);
+        }
+
+        $state = Str::random(40);
         session(['google_state' => $state]);
 
         $url = 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query([
             'client_id' => $clientId,
-            'redirect_uri' => $redirectUri,
+            'redirect_uri' => $this->getRedirectUri(),
             'response_type' => 'code',
-            'scope' => $scopes,
+            'scope' => 'openid email profile',
             'access_type' => 'offline',
             'prompt' => 'consent',
             'state' => $state,
@@ -36,44 +51,69 @@ class GoogleAuthController extends Controller
     {
         if ($request->has('error')) {
             return redirect('/login')->withErrors([
-                'email' => 'Login dibatalkan atau terjadi kesalahan.',
+                'email' => 'Login dibatalkan atau terjadi kesalahan dari Google.',
             ]);
         }
 
-        $request->validate([
-            'code' => 'required|string',
-            'state' => 'required|string',
-        ]);
-
-        if ($request->state !== session('google_state')) {
+        if (! $request->has('code') || ! $request->has('state')) {
             return redirect('/login')->withErrors([
-                'email' => 'Autentikasi gagal. Silakan coba lagi.',
+                'email' => 'Response dari Google tidak valid.',
             ]);
         }
 
+        $expectedState = session('google_state');
         session()->forget('google_state');
 
-        $tokenResponse = Http::asForm()->post('https://oauth2.googleapis.com/token', [
-            'code' => $request->code,
-            'client_id' => config('services.google.client_id'),
-            'client_secret' => config('services.google.client_secret'),
-            'redirect_uri' => route('google.callback'),
-            'grant_type' => 'authorization_code',
-        ]);
+        if (! $expectedState || $request->state !== $expectedState) {
+            return redirect('/login')->withErrors([
+                'email' => 'Autentikasi gagal (state tidak cocok). Silakan coba lagi.',
+            ]);
+        }
+
+        $redirectUri = $this->getRedirectUri();
+
+        try {
+            $tokenResponse = Http::timeout(10)->asForm()->post('https://oauth2.googleapis.com/token', [
+                'code' => $request->code,
+                'client_id' => config('services.google.client_id'),
+                'client_secret' => config('services.google.client_secret'),
+                'redirect_uri' => $redirectUri,
+                'grant_type' => 'authorization_code',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Google OAuth HTTP error', ['message' => $e->getMessage()]);
+
+            return redirect('/login')->withErrors([
+                'email' => 'Gagal menghubungi server Google. Periksa koneksi internet.',
+            ]);
+        }
 
         if ($tokenResponse->failed()) {
+            Log::warning('Google OAuth token exchange failed', [
+                'error' => $tokenResponse->json('error', 'unknown'),
+                'description' => $tokenResponse->json('error_description', ''),
+                'status' => $tokenResponse->status(),
+                'redirect_uri_sent' => $redirectUri,
+            ]);
+
             return redirect('/login')->withErrors([
-                'email' => 'Gagal mendapatkan token Google. Silakan coba lagi.',
+                'email' => 'Gagal mendapatkan token dari Google. Silakan coba lagi.',
             ]);
         }
 
         $accessToken = $tokenResponse->json('access_token');
 
-        $userInfo = Http::withToken($accessToken)->get('https://www.googleapis.com/oauth2/v2/userinfo');
+        try {
+            $userInfo = Http::timeout(10)->withToken($accessToken)->get('https://www.googleapis.com/oauth2/v2/userinfo');
+        } catch (Throwable $e) {
+            return redirect('/login')->withErrors([
+                'email' => 'Gagal mengambil data profil dari Google.',
+            ]);
+        }
 
         if ($userInfo->failed()) {
             return redirect('/login')->withErrors([
-                'email' => 'Gagal mendapatkan data akun Google.',
+                'email' => 'Gagal membaca data profil Google.',
             ]);
         }
 
@@ -84,13 +124,18 @@ class GoogleAuthController extends Controller
         $avatar = $googleUser['picture'] ?? null;
         $emailVerified = $googleUser['verified_email'] ?? false;
 
-        if (! $email || ! $emailVerified) {
+        if (! $email || ! $googleId) {
             return redirect('/login')->withErrors([
-                'email' => 'Email Google harus terverifikasi.',
+                'email' => 'Data Google tidak lengkap.',
             ]);
         }
 
-        // Find existing user by google_id or email
+        if (! $emailVerified) {
+            return redirect('/login')->withErrors([
+                'email' => 'Email Google belum terverifikasi. Verifikasi di akun Google Anda.',
+            ]);
+        }
+
         $user = User::where('google_id', $googleId)->first();
 
         if (! $user) {
@@ -98,15 +143,15 @@ class GoogleAuthController extends Controller
         }
 
         if ($user) {
-            // Link google_id if not yet linked
-            $user->update([
-                'google_id' => $user->google_id ?? $googleId,
-                'email_verified_at' => $user->email_verified_at ?? now(),
+            $updateData = [
                 'avatar' => $avatar ?? $user->avatar,
-                'is_active' => true,
-            ]);
+                'email_verified_at' => $user->email_verified_at ?? now(),
+            ];
+            if (! $user->google_id) {
+                $updateData['google_id'] = $googleId;
+            }
+            $user->update($updateData);
         } else {
-            // Create new user
             $user = User::create([
                 'name' => $name,
                 'email' => $email,
@@ -117,7 +162,18 @@ class GoogleAuthController extends Controller
                 'password' => null,
             ]);
 
-            $user->assignRole('Cashier');
+            if (class_exists(Role::class)) {
+                $cashierRole = Role::where('name', 'Cashier')->first();
+                if ($cashierRole) {
+                    $user->assignRole('Cashier');
+                }
+            }
+        }
+
+        if (! $user->is_active) {
+            return redirect('/login')->withErrors([
+                'email' => 'Akun telah dinonaktifkan. Hubungi administrator.',
+            ]);
         }
 
         Auth::login($user, true);
