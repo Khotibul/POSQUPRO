@@ -11,12 +11,14 @@ return new class extends Migration
         if (! Schema::hasTable('payments')) {
             Schema::create('payments', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('transaction_id')->index();
-                $table->decimal('amount', 15, 2);
-                $table->enum('method', ['cash', 'card', 'qris', 'transfer'])->default('cash');
+                $table->unsignedBigInteger('transaction_id')->nullable()->index();
+                $table->unsignedBigInteger('sale_id')->default(0);
+                $table->string('method', 50)->default('cash');
                 $table->enum('status', ['pending', 'success', 'failed'])->default('success');
                 $table->timestamp('paid_at')->nullable();
                 $table->text('notes')->nullable();
+                $table->decimal('amount', 15, 2);
+                $table->string('reference_no', 120)->nullable();
                 $table->timestamps();
             });
         } else {

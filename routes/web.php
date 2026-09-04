@@ -9,20 +9,31 @@ use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockCountController;
 use App\Http\Controllers\TransactionController;
+use App\Models\Branch;
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\InventoryHistory;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Models\Tax;
 use App\Models\Transaction;
+use App\Models\TransactionItem;
+use App\Models\UnitQuantity;
 use App\Models\User;
+use App\Models\Warehouse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 // Public - Landing page persis pos-next-js (hero, fitur, pricing) untuk guest, redirect ke dashboard untuk auth
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect('/dashboard');
     }
+
     return view('welcome');
 });
 
@@ -41,10 +52,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
     Route::get('/pos/checkout', [PosController::class, 'checkoutPage'])->name('pos.checkout.page');
     Route::get('/pos/park', [PosController::class, 'parkPage'])->name('pos.park.page');
+    Route::post('/pos/park', [PosController::class, 'park'])->name('pos.park');
+    Route::delete('/pos/park/{id}', [PosController::class, 'destroyPark'])->name('pos.park.destroy');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
 
     // Products - support search/filter params
-    Route::get('/products', function (\Illuminate\Http\Request $request) {
+    Route::get('/products', function (Request $request) {
         $products = Product::with(['category', 'unitQuantity', 'tax', 'supplier'])
             ->when($request->search, fn ($q, $s) => $q->where(function ($qq) use ($s) {
                 $qq->where('name', 'like', "%{$s}%")
@@ -60,10 +73,10 @@ Route::middleware('auth')->group(function () {
 
         return Inertia::render('Products/Index', [
             'products' => $products,
-            'categories' => \App\Models\Category::all(),
-            'units' => \App\Models\UnitQuantity::all(),
-            'taxes' => \App\Models\Tax::all(),
-            'suppliers' => \App\Models\Supplier::all(),
+            'categories' => Category::all(),
+            'units' => UnitQuantity::all(),
+            'taxes' => Tax::all(),
+            'suppliers' => Supplier::all(),
             'filters' => $request->only(['search', 'category_id', 'type']),
         ]);
     })->name('products.index');
@@ -78,10 +91,11 @@ Route::middleware('auth')->group(function () {
     // Inventory - tampil sesuai DB (jika inventory_histories kosong, tampilkan stock_movements Java)
     Route::get('/inventory', function () {
         $histories = InventoryHistory::with(['product', 'user'])->latest()->paginate(15);
-        if ($histories->total() === 0 && \Illuminate\Support\Facades\Schema::hasTable('stock_movements')) {
-            $histories = \Illuminate\Support\Facades\DB::table('stock_movements')->orderByDesc('id')->paginate(15);
+        if ($histories->total() === 0 && Schema::hasTable('stock_movements')) {
+            $histories = DB::table('stock_movements')->orderByDesc('id')->paginate(15);
             $histories->setCollection($histories->getCollection()->map(fn ($m) => (array) $m + ['product' => null, 'user' => null, 'type' => strtolower($m->movement_type), 'quantity' => $m->qty]));
         }
+
         return Inertia::render('Inventory/Index', [
             'products' => Product::with(['category', 'unitQuantity'])->latest()->paginate(15),
             'histories' => $histories,
@@ -106,12 +120,12 @@ Route::middleware('auth')->group(function () {
                 ->groupByRaw('DATE(created_at)')
                 ->orderBy('date')
                 ->get(),
-            'topProducts' => \App\Models\TransactionItem::select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as qty'), \Illuminate\Support\Facades\DB::raw('SUM(subtotal) as revenue'))
+            'topProducts' => TransactionItem::select('product_id', DB::raw('SUM(quantity) as qty'), DB::raw('SUM(subtotal) as revenue'))
                 ->whereHas('transaction', fn ($q) => $q->where('type', 'sell')->where('status', 'completed')->whereDate('created_at', '>=', now()->subDays(30)))
                 ->groupBy('product_id')->orderByDesc('qty')->with('product')->limit(10)->get(),
             'paymentBreakdown' => Transaction::join('payments', 'payments.transaction_id', '=', 'transactions.id')
                 ->whereDate('transactions.created_at', today())
-                ->select('payments.method', \Illuminate\Support\Facades\DB::raw('SUM(payments.amount) as total'))
+                ->select('payments.method', DB::raw('SUM(payments.amount) as total'))
                 ->groupBy('payments.method')->get(),
         ]);
     })->name('reports.index');
@@ -120,13 +134,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/users', function () {
         return Inertia::render('Users/Index', [
             'users' => User::with('roles')->paginate(15),
-            'roles' => \Spatie\Permission\Models\Role::all(),
+            'roles' => Role::all(),
         ]);
     })->name('users.index');
 
     Route::get('/suppliers', function () {
         return Inertia::render('Suppliers/Index', [
-            'suppliers' => \App\Models\Supplier::paginate(15),
+            'suppliers' => Supplier::paginate(15),
         ]);
     })->name('suppliers.index');
 
@@ -139,22 +153,24 @@ Route::middleware('auth')->group(function () {
 
     // Master data - tampil sesuai DB posqu_pro_desktop (dedicated pages)
     Route::get('/categories', function () {
-        $cats = \Illuminate\Support\Facades\DB::table('product_categories')->select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Java']);
-        $cats2 = \App\Models\Category::select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Laravel']);
+        $cats = DB::table('product_categories')->select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Java']);
+        $cats2 = Category::select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Laravel']);
         $all = $cats->merge($cats2);
-        return Inertia::render('Categories/Index', ['categories' => \App\Models\Category::paginate(15), 'allCategories' => $all]);
+
+        return Inertia::render('Categories/Index', ['categories' => Category::paginate(15), 'allCategories' => $all]);
     })->name('categories.index');
     Route::get('/units', function () {
-        $units = \Illuminate\Support\Facades\DB::table('units')->select('id', 'name')->get();
-        $uqs = \App\Models\UnitQuantity::select('id', 'name', 'symbol')->get();
-        return Inertia::render('Units/Index', ['units' => \App\Models\UnitQuantity::paginate(15), 'allUnits' => $units, 'unitQuantities' => $uqs]);
+        $units = DB::table('units')->select('id', 'name')->get();
+        $uqs = UnitQuantity::select('id', 'name', 'symbol')->get();
+
+        return Inertia::render('Units/Index', ['units' => UnitQuantity::paginate(15), 'allUnits' => $units, 'unitQuantities' => $uqs]);
     })->name('units.index');
-    Route::get('/taxes', fn () => Inertia::render('Taxes/Index', ['taxes' => \App\Models\Tax::paginate(15)]))->name('taxes.index');
-    Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => \App\Models\Branch::with('warehouses')->paginate(15)]))->name('branches.index');
+    Route::get('/taxes', fn () => Inertia::render('Taxes/Index', ['taxes' => Tax::paginate(15)]))->name('taxes.index');
+    Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => Branch::with('warehouses')->paginate(15)]))->name('branches.index');
     Route::get('/warehouses', function () {
         return Inertia::render('Warehouses/Index', [
-            'warehouses' => \App\Models\Warehouse::with('branch')->paginate(15),
-            'branches' => \App\Models\Branch::select('id', 'name', 'code')->get(),
+            'warehouses' => Warehouse::with('branch')->paginate(15),
+            'branches' => Branch::select('id', 'name', 'code')->get(),
         ]);
     })->name('warehouses.index');
 });

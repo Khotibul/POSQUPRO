@@ -7,7 +7,7 @@ import Card from '@/Components/UI/Card.vue'
 import Badge from '@/Components/UI/Badge.vue'
 
 const { success, error } = useToast()
-defineProps({ parked: Array })
+const props = defineProps({ parked: Array })
 
 const cart = ref([])
 const customerId = ref('')
@@ -21,9 +21,9 @@ onMounted(() => {
 async function savePark() {
   if (!cart.value.length) { error('Keranjang kosong'); return }
   try {
-    await router.post('/api/v1/parked-transactions', {
+    await router.post('/pos/park', {
       customer_id: customerId.value||null,
-      items: cart.value.map(i=>({ product_id:i.id, qty:i.qty, price:i.price })),
+      items: cart.value.map(i=>({ product_id:i.id, qty:i.qty, price:i.price, quantity:i.qty, unit_price:i.price })),
       notes: notes.value,
     }, { onSuccess: () => {
       localStorage.removeItem('pos_cart'); cart.value=[]; notes.value=''; success('Disimpan ke Park'); router.visit('/pos')
@@ -41,7 +41,7 @@ function restorePark(p) {
 
 async function removePark(id) {
   if(!confirm('Hapus park ini?')) return
-  router.delete(`/api/v1/parked-transactions/${id}`, { onSuccess: ()=> success('Dihapus') })
+  router.delete(`/pos/park/${id}`, { onSuccess: ()=> success('Dihapus') })
 }
 </script>
 <template>

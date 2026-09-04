@@ -6,12 +6,16 @@ use App\Models\Product;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class TransactionService
 {
     /**
-     * Mirrors pos-next-js transaction pattern: BEGIN/COMMIT/ROLLBACK via DB::transaction
-     * Handles stock deduction/addition + inventory_histories atomically.
+     * Create a transaction with stock deduction/addition + inventory_histories atomically.
+     * Validates stock server-side before processing.
+     *
+     * @throws ValidationException
+     * @throws \Exception
      */
     public function create(array $data): Transaction
     {
@@ -27,6 +31,10 @@ class TransactionService
             $taxAmount = $data['tax_amount'] ?? 0;
             $total = $subtotal - $discount + $taxAmount;
 
+            // Payment data
+            $paidAmount = $data['paid_amount'] ?? ($data['payment']['amount'] ?? $total);
+            $changeAmount = max(0, $paidAmount - $total);
+
             $transaction = Transaction::create([
                 'invoice_number' => $data['invoice_number'] ?? 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
                 'type' => $type,
@@ -37,13 +45,20 @@ class TransactionService
                 'discount' => $discount,
                 'tax_amount' => $taxAmount,
                 'total' => $total,
-                'status' => $data['status'] ?? 'completed',
+                'paid_amount' => $paidAmount,
+                'change_amount' => $changeAmount,
+                'status' => 'completed',
                 'notes' => $data['notes'] ?? null,
             ]);
 
             foreach ($items as $item) {
                 $product = Product::lockForUpdate()->findOrFail($item['product_id']);
-                $stockBefore = $product->stock;
+                $stockBefore = (int) $product->stock;
+
+                // Validate stock for sales
+                if ($type === 'sell' && $stockBefore < $item['quantity']) {
+                    throw new \Exception("Stok {$product->name} tidak cukup. Tersedia: {$stockBefore}, diminta: {$item['quantity']}");
+                }
 
                 $lineSubtotal = $item['quantity'] * $item['unit_price'] - ($item['discount'] ?? 0);
 
@@ -55,17 +70,16 @@ class TransactionService
                     'subtotal' => $lineSubtotal,
                 ]);
 
-                // Inventory movement (mirrors pos-next-js inventory_histories)
+                // Inventory movement
                 if ($type === 'sell') {
                     $product->decrement('stock', $item['quantity']);
                     $product->refresh();
-                    $transaction->load('items');
                     $product->inventoryHistories()->create([
                         'user_id' => $transaction->user_id,
                         'type' => 'out',
                         'quantity' => $item['quantity'],
                         'stock_before' => $stockBefore,
-                        'stock_after' => $product->stock,
+                        'stock_after' => (int) $product->stock,
                         'reason' => 'Sale '.$transaction->invoice_number,
                         'reference_type' => Transaction::class,
                         'reference_id' => $transaction->id,
@@ -78,7 +92,7 @@ class TransactionService
                         'type' => 'in',
                         'quantity' => $item['quantity'],
                         'stock_before' => $stockBefore,
-                        'stock_after' => $product->stock,
+                        'stock_after' => (int) $product->stock,
                         'reason' => 'Purchase '.$transaction->invoice_number,
                         'reference_type' => Transaction::class,
                         'reference_id' => $transaction->id,
@@ -86,12 +100,14 @@ class TransactionService
                 }
             }
 
-            // Auto payment if provided
+            // Create payment record
             if (! empty($data['payment'])) {
+                $method = strtolower($data['payment']['method'] ?? 'cash');
                 $transaction->payments()->create([
+                    'sale_id' => 0,
                     'amount' => $data['payment']['amount'] ?? $total,
-                    'method' => $data['payment']['method'] ?? 'cash',
-                    'status' => $data['payment']['status'] ?? 'success',
+                    'method' => $method,
+                    'status' => 'success',
                     'paid_at' => now(),
                 ]);
             }

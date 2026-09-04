@@ -13,7 +13,8 @@ class Transaction extends Model
 
     protected $fillable = [
         'invoice_number', 'type', 'customer_id', 'supplier_id', 'user_id',
-        'subtotal', 'discount', 'tax_amount', 'total', 'status', 'notes',
+        'subtotal', 'discount', 'tax_amount', 'total', 'paid_amount', 'change_amount',
+        'status', 'notes',
     ];
 
     protected $casts = [
@@ -21,6 +22,8 @@ class Transaction extends Model
         'discount' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'total' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'change_amount' => 'decimal:2',
     ];
 
     public function customer(): BelongsTo
