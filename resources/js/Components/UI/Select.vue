@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
-defineProps({
+const props = defineProps({
   modelValue: { type: [String, Number, Array], default: '' },
   label: { type: String, default: '' },
   placeholder: { type: String, default: 'Pilih...' },
-  options: { type: Array, default: () => [] }, // [{ value, label, disabled }]
+  options: { type: Array, default: () => [] },
   disabled: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   error: { type: String, default: '' },
@@ -18,17 +18,17 @@ const emit = defineEmits(['update:modelValue', 'change'])
 const isOpen = ref(false)
 const searchQuery = ref('')
 const selectedOption = computed(() => {
-  if (multiple) {
-    return options.filter(o => (modelValue || []).includes(o.value))
+  if (props.multiple) {
+    return props.options.filter(o => (props.modelValue || []).includes(o.value))
   }
-  return options.find(o => o.value == modelValue)
+  return props.options.find(o => o.value == props.modelValue)
 })
 
-function toggle() { if (!disabled) isOpen.value = !isOpen.value }
+function toggle() { if (!props.disabled) isOpen.value = !isOpen.value }
 function select(opt) {
   if (opt.disabled) return
-  if (multiple) {
-    const vals = [...(modelValue || [])]
+  if (props.multiple) {
+    const vals = [...(props.modelValue || [])]
     const idx = vals.indexOf(opt.value)
     if (idx > -1) vals.splice(idx, 1)
     else vals.push(opt.value)
@@ -39,8 +39,8 @@ function select(opt) {
   }
   emit('change', opt)
 }
-function clear() { emit('update:modelValue', multiple ? [] : '') }
-const filteredOptions = computed(() => options.filter(o =>
+function clear() { emit('update:modelValue', props.multiple ? [] : '') }
+const filteredOptions = computed(() => props.options.filter(o =>
   o.label.toLowerCase().includes(searchQuery.value.toLowerCase())
 ))
 </script>

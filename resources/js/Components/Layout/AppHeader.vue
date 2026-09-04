@@ -5,7 +5,7 @@ import { BellIcon, MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/vue/24/
 import { Link } from '@inertiajs/vue3'
 import { useAppLayout } from '@/Composables/useAppLayout'
 
-defineProps({
+const props = defineProps({
   user: { type: Object, default: null },
   sidebarCollapsed: { type: Boolean, default: false },
 })

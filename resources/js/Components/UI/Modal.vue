@@ -1,11 +1,15 @@
 <script setup>
-defineProps({
+import { onMounted, onUnmounted, watch } from 'vue'
+import Button from './Button.vue'
+
+const props = defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: '' },
-  size: { type: String, default: 'md' }, // sm, md, lg, xl, full
+  size: { type: String, default: 'md' },
   closable: { type: Boolean, default: true },
   closeOnOverlay: { type: Boolean, default: true },
   showFooter: { type: Boolean, default: true },
+  loading: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
@@ -24,9 +28,9 @@ const sizeClasses = {
 function close() { emit('update:modelValue', false) }
 function handleKeydown(e) { if (e.key === 'Escape') close() }
 
-onMounted(() => { if (modelValue) document.body.style.overflow = 'hidden' })
+onMounted(() => { if (props.modelValue) document.body.style.overflow = 'hidden' })
 onUnmounted(() => { document.body.style.overflow = '' })
-watch(() => modelValue, v => { document.body.style.overflow = v ? 'hidden' : '' })
+watch(() => props.modelValue, v => { document.body.style.overflow = v ? 'hidden' : '' })
 </script>
 <template>
   <Transition name="fade">

@@ -1,8 +1,8 @@
 <script setup>
-defineProps({
+const props = defineProps({
   label: { type: String, default: '' },
-  variant: { type: String, default: 'default' }, // default, success, warning, danger, info, primary
-  size: { type: String, default: 'md' }, // sm, md, lg
+  variant: { type: String, default: 'default' },
+  size: { type: String, default: 'md' },
   dot: { type: Boolean, default: false },
   removable: { type: Boolean, default: false },
   icon: { type: String, default: '' },
@@ -33,10 +33,10 @@ const dotColors = {
 }
 </script>
 <template>
-  <span :class="['inline-flex items-center gap-1.5 rounded-full font-medium', variantClasses[variant], sizeClasses[size]]">
-    <span v-if="dot" :class="['w-1.5 h-1.5 rounded-full', dotColors[variant]]" />
-    <component v-else-if="icon" :is="icon" class="w-3.5 h-3.5" />
-    <span>{{ label }}</span>
-    <button v-if="removable" @click="$emit('remove')" class="ml-1.5 p-0.5 rounded hover:bg-black/10">×</button>
+  <span :class="['inline-flex items-center gap-1.5 rounded-full font-medium', variantClasses[props.variant], sizeClasses[props.size]]">
+    <span v-if="props.dot" :class="['w-1.5 h-1.5 rounded-full', dotColors[props.variant]]" />
+    <component v-else-if="props.icon" :is="props.icon" class="w-3.5 h-3.5" />
+    <span>{{ props.label }}</span>
+    <button v-if="props.removable" @click="$emit('remove')" class="ml-1.5 p-0.5 rounded hover:bg-black/10">×</button>
   </span>
 </template>
