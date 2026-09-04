@@ -9,13 +9,13 @@ use App\Models\Product;
 use App\Services\ParkedTransactionService;
 use App\Services\SaleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PosController extends Controller
 {
     public function index(Request $request)
     {
-        // Optimasi: paginasi + search server-side, tidak load 33k sekaligus (hemat memori)
         $products = Product::with(['category'])
             ->where('is_active', true)
             ->when($request->search, fn ($q, $s) => $q->where(fn ($qq) => $qq->where('name', 'like', "%{$s}%")->orWhere('sku', 'like', "%{$s}%")->orWhere('barcode', 'like', "%{$s}%")))
@@ -34,9 +34,9 @@ class PosController extends Controller
 
     public function checkoutPage(Request $request)
     {
-        // Halaman checkout terpisah (menu page, bukan popup) - hemat memori
         return Inertia::render('POS/Checkout', [
             'customers' => Customer::select('id', 'name')->where('is_active', true)->orWhere('active', 1)->limit(100)->get(),
+            'settings' => $this->getPosSettings(),
         ]);
     }
 
@@ -95,11 +95,66 @@ class PosController extends Controller
         $data['user_id'] = auth()->id();
 
         try {
-            $service->create($data);
+            $result = $service->create($data);
 
-            return redirect()->back()->with('success', 'Transaksi berhasil!');
+            // Return checkout page with sale data for receipt preview
+            return Inertia::render('POS/Checkout', [
+                'customers' => Customer::select('id', 'name')->where('is_active', true)->orWhere('active', 1)->limit(100)->get(),
+                'settings' => $this->getPosSettings(),
+                'lastSale' => [
+                    'invoice_no' => $result['sale']->invoice_no,
+                    'subtotal' => $result['sale']->subtotal,
+                    'discount' => $result['sale']->discount,
+                    'tax' => $result['sale']->tax,
+                    'total' => $result['sale']->total,
+                    'paid' => $result['sale']->paid,
+                    'change_amount' => $result['sale']->change_amount,
+                    'status' => $result['sale']->status,
+                    'created_at' => $result['sale']->created_at,
+                    'items' => $result['items']->map(fn ($i) => [
+                        'product_name' => $i->product_name,
+                        'sku' => $i->sku,
+                        'qty' => $i->qty,
+                        'price' => $i->price,
+                        'subtotal' => $i->subtotal,
+                    ]),
+                    'payment' => [
+                        'method' => $result['payment']->method,
+                        'amount' => $result['payment']->amount,
+                    ],
+                    'cashier' => auth()->user()->name ?? 'Kasir',
+                ],
+            ]);
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['items' => $e->getMessage()])->withInput();
         }
+    }
+
+    private function getPosSettings(): array
+    {
+        $rows = DB::table('settings')
+            ->whereNotNull('setting_key')
+            ->pluck('setting_value', 'setting_key')
+            ->toArray();
+
+        return [
+            'store_name' => $rows['store.name'] ?? 'TOKO POSQU PRO',
+            'store_address' => $rows['store.address'] ?? '',
+            'store_phone' => $rows['store.phone'] ?? '',
+            'receipt_header' => $rows['receipt.header'] ?? 'Terima Kasih Telah Berbelanja',
+            'receipt_footer' => $rows['receipt.footer'] ?? '',
+            'printer_type' => $rows['printer.connection.type'] ?? 'Bluetooth',
+            'printer_name' => $rows['printer.name'] ?? 'auto',
+            'printer_mac' => $rows['printer.bluetooth.mac'] ?? '',
+            'paper_width' => $rows['printer.paper.width'] ?? '80',
+            'font_size' => $rows['printer.font.size'] ?? '7',
+            'font_family' => $rows['printer.font.family'] ?? 'monospace',
+            'margin_top' => $rows['printer.margin.top'] ?? '0',
+            'margin_bottom' => $rows['printer.margin.bottom'] ?? '0',
+            'margin_left' => $rows['printer.margin.left'] ?? '0',
+            'spacing_line' => $rows['printer.spacing.line'] ?? '80',
+            'alignment' => $rows['printer.alignment'] ?? 'left',
+            'auto_print' => ($rows['printer.auto.print'] ?? 'false') === 'true',
+        ];
     }
 }
