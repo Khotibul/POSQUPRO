@@ -16,6 +16,7 @@ class WarehouseController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate(['branch_id' => ['required', 'exists:branches,id'], 'code' => ['required', 'string', 'unique:warehouses,code'], 'name' => ['required', 'string'], 'phone' => ['nullable', 'string'], 'address' => ['nullable', 'string'], 'active' => ['boolean']]);
+
         return Warehouse::create($data);
     }
 
@@ -28,12 +29,14 @@ class WarehouseController extends Controller
     {
         $data = $request->validate(['branch_id' => ['sometimes', 'exists:branches,id'], 'code' => ['sometimes', 'string', 'unique:warehouses,code,'.$warehouse->id], 'name' => ['sometimes', 'string'], 'phone' => ['nullable', 'string'], 'address' => ['nullable', 'string'], 'active' => ['boolean']]);
         $warehouse->update($data);
+
         return $warehouse;
     }
 
     public function destroy(Warehouse $warehouse)
     {
         $warehouse->delete();
+
         return response()->json(['message' => 'deleted']);
     }
 }

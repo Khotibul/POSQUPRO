@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Services\PlanService;
 use Illuminate\Http\Request;
 
 class BranchController extends Controller
@@ -16,8 +17,8 @@ class BranchController extends Controller
     public function store(Request $request)
     {
         // Check plan limit
-        $planService = app(\App\Services\PlanService::class);
-        if (!$planService->canAddBranch()) {
+        $planService = app(PlanService::class);
+        if (! $planService->canAddBranch()) {
             return response()->json([
                 'message' => 'Batas maksimal cabang tercapai. Upgrade paket Anda.',
                 'limits' => $planService->getLimitsSummary(),
@@ -25,6 +26,7 @@ class BranchController extends Controller
         }
 
         $data = $request->validate(['code' => ['required', 'string', 'unique:branches,code'], 'name' => ['required', 'string'], 'address' => ['nullable', 'string'], 'phone' => ['nullable', 'string'], 'active' => ['boolean']]);
+
         return Branch::create($data);
     }
 
@@ -37,12 +39,14 @@ class BranchController extends Controller
     {
         $data = $request->validate(['code' => ['sometimes', 'string', 'unique:branches,code,'.$branch->id], 'name' => ['sometimes', 'string'], 'address' => ['nullable', 'string'], 'phone' => ['nullable', 'string'], 'active' => ['boolean']]);
         $branch->update($data);
+
         return $branch;
     }
 
     public function destroy(Branch $branch)
     {
         $branch->delete();
+
         return response()->json(['message' => 'deleted']);
     }
 }

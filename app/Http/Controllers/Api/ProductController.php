@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Services\PlanService;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 
@@ -22,8 +23,8 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         // Check plan limit
-        $planService = app(\App\Services\PlanService::class);
-        if (!$planService->canAddProduct()) {
+        $planService = app(PlanService::class);
+        if (! $planService->canAddProduct()) {
             return response()->json([
                 'message' => 'Batas maksimal produk tercapai. Upgrade paket Anda untuk menambah produk.',
                 'limits' => $planService->getLimitsSummary(),

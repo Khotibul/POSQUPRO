@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
 use App\Models\Plan;
+use App\Models\Product;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\Product;
-use App\Models\Branch;
-use Illuminate\Support\Facades\DB;
 
 class PlanService
 {
     protected ?Tenant $tenant;
+
     protected ?Plan $plan;
 
     public function __construct(?Tenant $tenant = null)
@@ -24,6 +24,7 @@ class PlanService
     {
         $this->tenant = $tenant;
         $this->plan = $tenant->plan;
+
         return $this;
     }
 
@@ -41,7 +42,7 @@ class PlanService
 
     public function getUserCount(): int
     {
-        if (!$this->tenant) {
+        if (! $this->tenant) {
             return 0;
         }
         try {
@@ -53,24 +54,26 @@ class PlanService
 
     public function canAddUser(): bool
     {
-        if (!$this->plan || !$this->tenant) {
+        if (! $this->plan || ! $this->tenant) {
             return false;
         }
+
         return $this->getUserCount() < $this->plan->max_users;
     }
 
     public function getUserLimitMessage(): string
     {
-        if (!$this->plan) {
+        if (! $this->plan) {
             return 'Tidak ada paket aktif';
         }
         $current = $this->getUserCount();
+
         return "{$current}/{$this->plan->max_users} pengguna terpakai";
     }
 
     public function getProductCount(): int
     {
-        if (!$this->tenant) {
+        if (! $this->tenant) {
             return 0;
         }
         try {
@@ -82,24 +85,26 @@ class PlanService
 
     public function canAddProduct(): bool
     {
-        if (!$this->plan || !$this->tenant) {
+        if (! $this->plan || ! $this->tenant) {
             return false;
         }
+
         return $this->getProductCount() < $this->plan->max_products;
     }
 
     public function getProductLimitMessage(): string
     {
-        if (!$this->plan) {
+        if (! $this->plan) {
             return 'Tidak ada paket aktif';
         }
         $current = $this->getProductCount();
+
         return "{$current}/{$this->plan->max_products} produk terpakai";
     }
 
     public function getBranchCount(): int
     {
-        if (!$this->tenant) {
+        if (! $this->tenant) {
             return 0;
         }
         try {
@@ -111,18 +116,20 @@ class PlanService
 
     public function canAddBranch(): bool
     {
-        if (!$this->plan || !$this->tenant) {
+        if (! $this->plan || ! $this->tenant) {
             return false;
         }
+
         return $this->getBranchCount() < $this->plan->max_branches;
     }
 
     public function getBranchLimitMessage(): string
     {
-        if (!$this->plan) {
+        if (! $this->plan) {
             return 'Tidak ada paket aktif';
         }
         $current = $this->getBranchCount();
+
         return "{$current}/{$this->plan->max_branches} cabang terpakai";
     }
 
@@ -130,9 +137,10 @@ class PlanService
 
     public function hasFeature(string $feature): bool
     {
-        if (!$this->plan) {
+        if (! $this->plan) {
             return false;
         }
+
         return in_array($feature, $this->plan->features ?? []);
     }
 
@@ -145,12 +153,12 @@ class PlanService
 
     public function isOverLimits(): bool
     {
-        return !$this->canAddUser() || !$this->canAddProduct() || !$this->canAddBranch();
+        return ! $this->canAddUser() || ! $this->canAddProduct() || ! $this->canAddBranch();
     }
 
     public function getLimitsSummary(): array
     {
-        if (!$this->plan) {
+        if (! $this->plan) {
             return [
                 'has_plan' => false,
                 'plan_name' => 'Tidak ada paket',

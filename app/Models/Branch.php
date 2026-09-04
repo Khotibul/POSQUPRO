@@ -11,7 +11,9 @@ class Branch extends Model
     use HasFactory;
 
     protected $fillable = ['code', 'name', 'address', 'phone', 'active'];
+
     protected $casts = ['active' => 'boolean'];
+
     protected $table = 'branches';
 
     public function warehouses(): HasMany

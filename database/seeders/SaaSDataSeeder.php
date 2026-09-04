@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Tenant;
-use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +14,7 @@ class SaaSDataSeeder extends Seeder
     public function run(): void
     {
         // Skip if tables don't exist (SQLite tests)
-        if (!DB::getSchemaBuilder()->hasTable('plans')) {
+        if (! DB::getSchemaBuilder()->hasTable('plans')) {
             return;
         }
 
@@ -144,11 +144,11 @@ class SaaSDataSeeder extends Seeder
         // ── INVOICES ───────────────────────────────────────────
         $tenants = [$t1, $t2, $t3, $t4, $t5];
         foreach ($tenants as $t) {
-            if (!$t->plan_id) {
+            if (! $t->plan_id) {
                 continue;
             }
             $plan = Plan::find($t->plan_id);
-            if (!$plan || $plan->price <= 0) {
+            if (! $plan || $plan->price <= 0) {
                 continue;
             }
 
@@ -159,7 +159,7 @@ class SaaSDataSeeder extends Seeder
                 $isPaid = $m > 0;
 
                 Invoice::firstOrCreate(
-                    ['invoice_number' => 'INV-' . $t->slug . '-' . ($m + 1)],
+                    ['invoice_number' => 'INV-'.$t->slug.'-'.($m + 1)],
                     [
                         'tenant_id' => $t->id,
                         'plan_id' => $plan->id,

@@ -9,6 +9,8 @@ use App\Models\Supplier;
 use App\Models\Tax;
 use App\Models\UnitQuantity;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PosquproSeeder extends Seeder
@@ -35,8 +37,8 @@ class PosquproSeeder extends Seeder
         Tax::firstOrCreate(['name' => 'PPN 0%'], ['rate' => 0.00]);
 
         // Java's suppliers/customers require 'code' field
-        $supplierCode = 'SUP-' . strtoupper(Str::random(6));
-        $customerCode = 'CUST-' . strtoupper(Str::random(6));
+        $supplierCode = 'SUP-'.strtoupper(Str::random(6));
+        $customerCode = 'CUST-'.strtoupper(Str::random(6));
         // Use DB directly to handle Java's code requirement
         $supplierData = ['name' => 'PT Sumber Makmur', 'email' => 'supplier@example.com', 'phone' => '08123456789', 'address' => 'Jl. Industri No. 1'];
         $customerData = ['name' => 'Pelanggan Umum', 'phone' => '0811111111', 'address' => 'Walk-in'];
@@ -46,7 +48,7 @@ class PosquproSeeder extends Seeder
         } catch (\Exception $e) {
             // If code column missing, try without
             if (str_contains($e->getMessage(), 'code')) {
-                \Illuminate\Support\Facades\DB::table('suppliers')->updateOrInsert(['name' => 'PT Sumber Makmur'], array_merge($supplierData, ['code' => $supplierCode, 'created_at' => now(), 'updated_at' => now()]));
+                DB::table('suppliers')->updateOrInsert(['name' => 'PT Sumber Makmur'], array_merge($supplierData, ['code' => $supplierCode, 'created_at' => now(), 'updated_at' => now()]));
             } else {
                 throw $e;
             }
@@ -55,7 +57,7 @@ class PosquproSeeder extends Seeder
             Customer::firstOrCreate(['name' => 'Pelanggan Umum'], array_merge($customerData, ['code' => $customerCode]));
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'code')) {
-                \Illuminate\Support\Facades\DB::table('customers')->updateOrInsert(['name' => 'Pelanggan Umum'], array_merge($customerData, ['code' => $customerCode, 'created_at' => now(), 'updated_at' => now()]));
+                DB::table('customers')->updateOrInsert(['name' => 'Pelanggan Umum'], array_merge($customerData, ['code' => $customerCode, 'created_at' => now(), 'updated_at' => now()]));
             } else {
                 throw $e;
             }
@@ -90,14 +92,14 @@ class PosquproSeeder extends Seeder
                     'is_active' => 1,
                 ]);
                 // Set unit_id for Java if exists
-                if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'unit_id')) {
+                if (Schema::hasColumn('products', 'unit_id')) {
                     $data['unit_id'] = $unit->id;
                 }
                 try {
                     Product::create($data);
                 } catch (\Exception $e) {
                     // Fallback via DB with minimal Java fields
-                    \Illuminate\Support\Facades\DB::table('products')->insert(array_merge([
+                    DB::table('products')->insert(array_merge([
                         'sku' => $p['sku'],
                         'barcode' => $p['sku'],
                         'name' => $p['name'],

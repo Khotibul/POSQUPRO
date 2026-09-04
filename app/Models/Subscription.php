@@ -51,9 +51,10 @@ class Subscription extends Model
 
     public function daysRemaining(): int
     {
-        if (!$this->ends_at) {
+        if (! $this->ends_at) {
             return 0;
         }
+
         return max(0, now()->diffInDays($this->ends_at, false));
     }
 }

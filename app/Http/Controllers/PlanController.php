@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Plan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class PlanController extends Controller
@@ -11,6 +12,7 @@ class PlanController extends Controller
     public function index()
     {
         $plans = Plan::orderBy('sort_order')->get();
+
         return Inertia::render('Billing/Plans', compact('plans'));
     }
 
@@ -31,7 +33,7 @@ class PlanController extends Controller
         ]);
 
         if (empty($validated['slug'])) {
-            $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']);
+            $validated['slug'] = Str::slug($validated['name']);
         }
 
         Plan::create($validated);
@@ -66,6 +68,7 @@ class PlanController extends Controller
         }
 
         $plan->delete();
+
         return back()->with('success', 'Paket berhasil dihapus');
     }
 }

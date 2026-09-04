@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -93,7 +94,7 @@ class RolePermissionSeeder extends Seeder
                 $updates['password'] = $hashed;
             }
             // Use DB to update password_hash, branch_id, role if columns exist
-            \Illuminate\Support\Facades\DB::table('users')->where('id', $existing->id)->update(array_filter([
+            DB::table('users')->where('id', $existing->id)->update(array_filter([
                 'password_hash' => $hashed,
                 'branch_id' => $existing->branch_id ?? 1,
                 'role' => $existing->role ?? $javaRole,

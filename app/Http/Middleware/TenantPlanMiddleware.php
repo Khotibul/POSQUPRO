@@ -14,13 +14,13 @@ class TenantPlanMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         try {
-            if (!$request->user()) {
+            if (! $request->user()) {
                 return $next($request);
             }
 
             $user = $request->user();
 
-            if (!Schema::hasTable('tenants') || !Schema::hasTable('plans')) {
+            if (! Schema::hasTable('tenants') || ! Schema::hasTable('plans')) {
                 return $next($request);
             }
 

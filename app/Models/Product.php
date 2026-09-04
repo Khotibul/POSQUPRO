@@ -35,6 +35,7 @@ class Product extends Model
         if ($value && (float) $value != 0) {
             return $value;
         }
+
         return $this->attributes['price'] ?? $value ?? '0.00';
     }
 
@@ -43,6 +44,7 @@ class Product extends Model
         if ($value && (float) $value != 0) {
             return $value;
         }
+
         return $this->attributes['cost'] ?? $value ?? '0.00';
     }
 

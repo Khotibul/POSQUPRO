@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\PlanService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -17,8 +18,8 @@ class UserController extends Controller
     public function store(Request $request)
     {
         // Check plan limit
-        $planService = app(\App\Services\PlanService::class);
-        if (!$planService->canAddUser()) {
+        $planService = app(PlanService::class);
+        if (! $planService->canAddUser()) {
             return response()->json([
                 'message' => 'Batas maksimal pengguna tercapai. Upgrade paket Anda.',
                 'limits' => $planService->getLimitsSummary(),

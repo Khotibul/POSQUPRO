@@ -12,7 +12,9 @@ class Warehouse extends Model
     use HasFactory;
 
     protected $fillable = ['branch_id', 'code', 'name', 'phone', 'address', 'active'];
+
     protected $casts = ['active' => 'boolean'];
+
     protected $table = 'warehouses';
 
     public function branch(): BelongsTo

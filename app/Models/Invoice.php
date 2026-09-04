@@ -61,7 +61,7 @@ class Invoice extends Model
     {
         static::creating(function (Invoice $invoice) {
             if (empty($invoice->invoice_number)) {
-                $invoice->invoice_number = 'INV-' . now()->format('Ymd') . '-' . strtoupper(uniqid());
+                $invoice->invoice_number = 'INV-'.now()->format('Ymd').'-'.strtoupper(uniqid());
             }
         });
     }
