@@ -22,10 +22,49 @@ use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UnitQuantityController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => ['status' => 'ok', 'app' => 'POSQUPRO']);
+
+// Mobile Auth (Sanctum token-based)
+Route::post('/v1/login', function (Request $request) {
+    $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required', 'string'],
+    ]);
+
+    $user = User::where('email', $request->email)->first();
+
+    if (! $user || ! Hash::check($request->password, $user->getAuthPassword())) {
+        return response()->json(['message' => 'Email atau password salah.'], 401);
+    }
+
+    if ($user->is_active === false || $user->active === false) {
+        return response()->json(['message' => 'Akun telah dinonaktifkan.'], 403);
+    }
+
+    $token = $user->createToken('mobile-app')->plainTextToken;
+
+    return response()->json([
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'avatar' => $user->avatar,
+        ],
+    ]);
+});
+
+Route::post('/v1/logout', function (Request $request) {
+    $request->user()->currentAccessToken()->delete();
+
+    return response()->json(['message' => 'Logged out']);
+})->middleware('auth:sanctum');
 
 // Sanctum authenticated user
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
