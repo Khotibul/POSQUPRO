@@ -6,12 +6,21 @@ import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/transaction_provider.dart';
+import 'providers/customer_provider.dart';
+import 'providers/supplier_provider.dart';
+import 'providers/report_provider.dart';
+import 'providers/settings_provider.dart';
+import 'providers/register_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/pos_screen.dart';
 import 'screens/products_screen.dart';
+import 'screens/customers_screen.dart';
+import 'screens/suppliers_screen.dart';
 import 'screens/transactions_screen.dart';
+import 'screens/reports_screen.dart';
+import 'screens/stock_screen.dart';
 import 'screens/settings_screen.dart';
 
 void main() {
@@ -36,6 +45,11 @@ class PosquproApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
+        ChangeNotifierProvider(create: (_) => CustomerProvider()),
+        ChangeNotifierProvider(create: (_) => SupplierProvider()),
+        ChangeNotifierProvider(create: (_) => ReportProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => RegisterProvider()),
       ],
       child: MaterialApp(
         title: 'POSQUPRO',
@@ -52,8 +66,16 @@ class PosquproApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const PosScreen());
             case '/products':
               return MaterialPageRoute(builder: (_) => const ProductsScreen());
+            case '/customers':
+              return MaterialPageRoute(builder: (_) => const CustomersScreen());
+            case '/suppliers':
+              return MaterialPageRoute(builder: (_) => const SuppliersScreen());
             case '/transactions':
               return MaterialPageRoute(builder: (_) => const TransactionsScreen());
+            case '/reports':
+              return MaterialPageRoute(builder: (_) => const ReportsScreen());
+            case '/stock':
+              return MaterialPageRoute(builder: (_) => const StockScreen());
             case '/settings':
               return MaterialPageRoute(builder: (_) => const SettingsScreen());
             default:

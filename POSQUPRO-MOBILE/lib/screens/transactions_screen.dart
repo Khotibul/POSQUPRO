@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../providers/transaction_provider.dart';
+import '../models/transaction.dart';
+import 'transaction_detail_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -12,8 +13,7 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
-  final _searchCtrl = TextEditingController();
-  final _scrollCtrl = ScrollController();
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -21,138 +21,124 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TransactionProvider>().loadTransactions(refresh: true);
     });
-    _scrollCtrl.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
-      context.read<TransactionProvider>().loadTransactions();
-    }
   }
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
-    _scrollCtrl.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final txProvider = context.watch<TransactionProvider>();
+    final provider = context.watch<TransactionProvider>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Transaksi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        title: const Text('Transaksi', style: TextStyle(fontSize: 18)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 22), onPressed: () => Navigator.pop(context)),
       ),
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             color: Colors.white,
             child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => txProvider.search(v),
+              controller: _searchController,
+              onChanged: (v) => provider.search(v),
               decoration: InputDecoration(
                 hintText: 'Cari transaksi...',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 prefixIconConstraints: const BoxConstraints(minWidth: 40),
-                filled: true,
-                fillColor: AppColors.background,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                filled: true, fillColor: AppColors.surface,
               ),
             ),
           ),
           Expanded(
-            child: txProvider.isLoading && txProvider.transactions.isEmpty
+            child: provider.isLoading && provider.transactions.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : txProvider.transactions.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.receipt_long_rounded, size: 64, color: AppColors.textMuted.withOpacity(0.4)),
-                            const SizedBox(height: 16),
-                            const Text('Belum ada transaksi', style: TextStyle(color: AppColors.textMuted, fontSize: 16)),
-                          ],
-                        ),
-                      )
+                : provider.transactions.isEmpty
+                    ? const Center(child: Text('Belum ada transaksi', style: TextStyle(color: AppColors.textMuted)))
                     : RefreshIndicator(
-                        onRefresh: () => txProvider.loadTransactions(refresh: true),
+                        onRefresh: () => provider.loadTransactions(refresh: true),
                         child: ListView.builder(
-                          controller: _scrollCtrl,
                           padding: const EdgeInsets.all(16),
-                          itemCount: txProvider.transactions.length,
+                          itemCount: provider.transactions.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
-                            final t = txProvider.transactions[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 36,
-                                        height: 36,
-                                        decoration: BoxDecoration(
-                                          color: t.type == 'sell' ? AppColors.success.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Icon(
-                                          t.type == 'sell' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                                          color: t.type == 'sell' ? AppColors.success : AppColors.primary,
-                                          size: 18,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(t.invoiceNumber ?? '#${t.id}',
-                                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                                            Text(
-                                              '${t.customerName ?? t.userName ?? '-'} - ${t.items.length} item',
-                                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text('Rp ${t.total.toStringAsFixed(0)}',
-                                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary)),
-                                          if (t.createdAt != null)
-                                            Text(DateFormat('dd MMM HH:mm').format(t.createdAt!),
-                                                style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
+                            if (index == provider.transactions.length) {
+                              provider.loadTransactions();
+                              return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+                            }
+                            final t = provider.transactions[index];
+                            return _buildCard(context, t);
                           },
                         ),
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCard(BuildContext context, Transaction t) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TransactionDetailScreen(transaction: t))),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: t.type == 'sell' ? AppColors.successLight : AppColors.primarySurface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                t.type == 'sell' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                color: t.type == 'sell' ? AppColors.success : AppColors.primary,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(t.invoiceNumber ?? '#${t.id}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: t.status == 'completed' ? AppColors.successLight : AppColors.warningLight,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(t.status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: t.status == 'completed' ? AppColors.success : AppColors.warning)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(t.customerName ?? t.userName ?? '-', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  if (t.createdAt != null) Text(formatDate(t.createdAt!), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(formatCurrency(t.total), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary)),
+                Text('${t.items.length} item', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

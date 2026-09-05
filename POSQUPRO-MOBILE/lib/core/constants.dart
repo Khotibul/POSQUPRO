@@ -1,5 +1,4 @@
 class ApiConstants {
-  // Change this to your server IP for development
   static String baseUrl = 'http://127.0.0.1:8000/api';
   static const String loginUrl = '/v1/login';
   static const String logoutUrl = '/v1/logout';
@@ -16,6 +15,18 @@ class ApiConstants {
   static const String settingsPublic = '/v1/settings/public';
   static const String financeSummary = '/v1/finance/summary';
   static const String reportsSales = '/v1/reports/sales';
+  static const String reportsInventory = '/v1/reports/inventory';
+  static const String registers = '/v1/registers';
+  static const String registerSessions = '/v1/register-sessions';
+  static const String parkedTransactions = '/v1/parked-transactions';
+  static const String purchaseOrders = '/v1/purchase-orders';
+  static const String stockCounts = '/v1/stock-counts';
+  static const String inventoryHistories = '/v1/inventory-histories';
+  static const String payments = '/v1/payments';
+  static const String branches = '/v1/branches';
+  static const String warehouses = '/v1/warehouses';
+  static const String activityLogs = '/v1/activity-logs';
+  static const String users = '/v1/users';
 }
 
 class AppConstants {
