@@ -170,37 +170,50 @@ class GoogleAuthController extends Controller
             $user = User::where('email', $email)->first();
         }
 
-        if ($user) {
-            $updateData = [
-                'avatar' => $avatar ?? $user->avatar,
-                'email_verified_at' => $user->email_verified_at ?? now(),
-            ];
-            if (! $user->google_id) {
-                $updateData['google_id'] = $googleId;
+        try {
+            if ($user) {
+                $updateData = [
+                    'avatar' => $avatar ?? $user->avatar,
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ];
+                if (! $user->google_id) {
+                    $updateData['google_id'] = $googleId;
+                }
+                $user->update($updateData);
+            } else {
+                $user = User::create([
+                    'name' => $name,
+                    'email' => $email,
+                    'google_id' => $googleId,
+                    'avatar' => $avatar,
+                    'email_verified_at' => now(),
+                    'is_active' => true,
+                    'active' => true,
+                    'role' => 'CASHIER',
+                    'password_hash' => 'google-oauth',
+                ]);
+
+                if (class_exists(Role::class)) {
+                    $cashierRole = Role::where('name', 'Cashier')->first();
+                    if ($cashierRole) {
+                        $user->assignRole('Cashier');
+                    }
+                }
+
+                Log::info('Google OAuth: new user created', ['user_id' => $user->id, 'email' => $email]);
             }
-            $user->update($updateData);
-        } else {
-            $user = User::create([
-                'name' => $name,
+        } catch (Throwable $e) {
+            Log::error('Google OAuth: failed to create/update user', [
                 'email' => $email,
-                'google_id' => $googleId,
-                'avatar' => $avatar,
-                'email_verified_at' => now(),
-                'is_active' => true,
-                'password_hash' => 'google-oauth',
+                'error' => $e->getMessage(),
             ]);
 
-            if (class_exists(Role::class)) {
-                $cashierRole = Role::where('name', 'Cashier')->first();
-                if ($cashierRole) {
-                    $user->assignRole('Cashier');
-                }
-            }
-
-            Log::info('Google OAuth: new user created', ['user_id' => $user->id, 'email' => $email]);
+            return redirect('/login')->withErrors([
+                'email' => 'Gagal membuat akun. Hubungi administrator. ('.$e->getMessage().')',
+            ]);
         }
 
-        if (! $user->is_active) {
+        if (! $user->is_active || $user->active === false) {
             return redirect('/login')->withErrors([
                 'email' => 'Akun telah dinonaktifkan. Hubungi administrator.',
             ]);

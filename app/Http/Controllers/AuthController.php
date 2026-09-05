@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -30,13 +31,14 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($user->is_active === false) {
+        if ($user->is_active === false || $user->active === false) {
             throw ValidationException::withMessages([
                 'email' => ['Akun Anda telah dinonaktifkan. Hubungi administrator.'],
             ]);
         }
 
-        if ($user->google_id && ! $user->password) {
+        $hasPassword = Hash::isHashed($user->password ?? '') || Hash::isHashed($user->password_hash ?? '');
+        if ($user->google_id && ! $hasPassword) {
             throw ValidationException::withMessages([
                 'email' => ['Akun ini terdaftar via Google. Silakan gunakan tombol "Masuk dengan Google".'],
             ]);
