@@ -309,7 +309,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                     const SizedBox(height: 12),
                     if (categories.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        value: _categoryId,
+                        initialValue: _categoryId,
                         decoration: const InputDecoration(labelText: 'Kategori'),
                         items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
                         onChanged: (v) => setState(() => _categoryId = v),

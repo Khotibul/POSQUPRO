@@ -11,6 +11,7 @@ import 'providers/supplier_provider.dart';
 import 'providers/report_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/register_provider.dart';
+import 'providers/local_database_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -50,6 +51,7 @@ class PosquproApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ReportProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => RegisterProvider()),
+        ChangeNotifierProvider(create: (_) => LocalDatabaseProvider()),
       ],
       child: MaterialApp(
         title: 'POSQUPRO',

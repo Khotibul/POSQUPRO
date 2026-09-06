@@ -51,41 +51,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 88,
-                height: 88,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.point_of_sale_rounded, size: 48, color: Colors.white),
+                child: const Icon(Icons.point_of_sale_rounded, size: 44, color: Colors.white),
               ),
               const SizedBox(height: 24),
               const Text(
                 'POSQUPRO',
-                style: TextStyle(
-
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: 2,
-                ),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 2),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Modern Point of Sale',
-                style: TextStyle(
-
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
               SizedBox(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.8)),
                 ),
               ),
             ],

@@ -19,29 +19,12 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 64,
-            color: AppColors.textMuted.withOpacity(0.4),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Icon(icon, size: 56, color: AppColors.textMuted.withValues(alpha: 0.4)),
+          const SizedBox(height: 12),
+          Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 15, fontWeight: FontWeight.w600)),
           if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              subtitle!,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 14,
-              ),
-            ),
+            const SizedBox(height: 6),
+            Text(subtitle!, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
           ],
         ],
       ),

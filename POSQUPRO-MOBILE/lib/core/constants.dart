@@ -1,5 +1,7 @@
+import 'dart:io';
+
 class ApiConstants {
-  static String baseUrl = 'http://127.0.0.1:8000/api';
+  static String baseUrl = _detectBaseUrl();
   static const String loginUrl = '/v1/login';
   static const String logoutUrl = '/v1/logout';
   static const String userUrl = '/user';
@@ -27,6 +29,16 @@ class ApiConstants {
   static const String warehouses = '/v1/warehouses';
   static const String activityLogs = '/v1/activity-logs';
   static const String users = '/v1/users';
+
+  static String _detectBaseUrl() {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000/api';
+    } else if (Platform.isIOS) {
+      return 'http://127.0.0.1:8000/api';
+    } else {
+      return 'http://127.0.0.1:8000/api';
+    }
+  }
 }
 
 class AppConstants {
@@ -34,5 +46,5 @@ class AppConstants {
   static const String tokenKey = 'auth_token';
   static const String userKey = 'user_data';
   static const String baseUrlKey = 'base_url';
-  static const String defaultBaseUrl = 'http://127.0.0.1:8000/api';
+  static String get defaultBaseUrl => ApiConstants.baseUrl;
 }
