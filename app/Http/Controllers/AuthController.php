@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\LegacyPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -37,18 +39,36 @@ class AuthController extends Controller
             ]);
         }
 
-        $hasPassword = Hash::isHashed($user->password ?? '') || Hash::isHashed($user->password_hash ?? '');
+        $hasPassword = Hash::isHashed($user->password ?? '') || Hash::isHashed($user->password_hash ?? '') || $user->password_hash === 'google-oauth';
         if ($user->google_id && ! $hasPassword) {
             throw ValidationException::withMessages([
                 'email' => ['Akun ini terdaftar via Google. Silakan gunakan tombol "Masuk dengan Google".'],
             ]);
         }
 
-        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        // Support both bcrypt and legacy SHA256 (Java desktop) - Auth::attempt only checks bcrypt via getAuthPassword()
+        $passwordValid = false;
+        $plain = $request->password;
+        // Try Laravel native (password column bcrypt)
+        if (LegacyPassword::verify($plain, $user->password) || LegacyPassword::verify($plain, $user->password_hash)) {
+            $passwordValid = true;
+            // Auto-migrate legacy SHA256 to bcrypt if needed
+            if (LegacyPassword::needsRehash($user->password) || LegacyPassword::needsRehash($user->password_hash)) {
+                $newHash = Hash::make($plain);
+                DB::table('users')->where('id', $user->id)->update([
+                    'password' => $newHash,
+                    'password_hash' => $newHash,
+                ]);
+            }
+        }
+
+        if (! $passwordValid) {
             throw ValidationException::withMessages([
                 'email' => ['Password salah.'],
             ]);
         }
+
+        Auth::login($user, $request->boolean('remember'));
 
         $request->session()->regenerate();
         $request->user()->update(['last_login_at' => now()]);

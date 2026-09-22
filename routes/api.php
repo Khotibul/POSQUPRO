@@ -23,7 +23,9 @@ use App\Http\Controllers\Api\UnitQuantityController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Models\User;
+use App\Support\LegacyPassword;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
@@ -38,12 +40,37 @@ Route::post('/v1/login', function (Request $request) {
 
     $user = User::where('email', $request->email)->first();
 
-    if (! $user || ! Hash::check($request->password, $user->getAuthPassword())) {
+    if (! $user) {
         return response()->json(['message' => 'Email atau password salah.'], 401);
+    }
+
+    $plain = $request->password;
+    $valid = LegacyPassword::verify($plain, $user->password) || LegacyPassword::verify($plain, $user->password_hash) || Hash::check($plain, $user->getAuthPassword());
+    if (! $valid) {
+        return response()->json(['message' => 'Email atau password salah.'], 401);
+    }
+
+    // Auto-migrate legacy SHA256 to bcrypt on successful login
+    if (LegacyPassword::needsRehash($user->password) || LegacyPassword::needsRehash($user->password_hash)) {
+        $newHash = Hash::make($plain);
+        DB::table('users')->where('id', $user->id)->update([
+            'password' => $newHash,
+            'password_hash' => $newHash,
+        ]);
     }
 
     if ($user->is_active === false || $user->active === false) {
         return response()->json(['message' => 'Akun telah dinonaktifkan.'], 403);
+    }
+
+    // Super Admin / OWNER hanya via Website (Laravel web), tidak via API/Mobile/Desktop
+    $role = strtoupper(trim($user->role ?? ''));
+    if ($role === 'OWNER') {
+        // Check if user has Super Admin Spatie role
+        $isSuperAdmin = method_exists($user, 'hasRole') && $user->hasRole('Super Admin');
+        if ($isSuperAdmin || $role === 'OWNER') {
+            return response()->json(['message' => 'Akun Super Admin hanya dapat login melalui Website. Silakan buka POSQUPRO via browser.'], 403);
+        }
     }
 
     $token = $user->createToken('mobile-app')->plainTextToken;
