@@ -74,6 +74,7 @@ const navItems = [
   { name: 'purchaseOrders', label: 'Purchase Order', icon: 'ShoppingBagIcon', route: '/purchase-orders', shortcut: 'F7', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
   { name: 'stockCounts', label: 'Stock Opname', icon: 'ClipboardDocumentListIcon', route: '/stock-counts', shortcut: 'F8', roles: ['Super Admin', 'Admin', 'Warehouse Manager'] },
   { name: 'reports', label: 'Laporan & Analitik', icon: 'ChartBarIcon', route: '/reports', shortcut: 'F6', roles: ['Super Admin', 'Admin', 'Finance'] },
+  { name: 'expenses', label: 'Pengeluaran', icon: 'BanknotesIcon', route: '/expenses', roles: ['Super Admin', 'Admin', 'Finance'] },
   { name: 'taxes', label: 'Pajak', icon: 'ReceiptPercentIcon', route: '/taxes', roles: ['Super Admin', 'Admin', 'Finance'] },
   { name: 'users', label: 'Pengguna & RBAC', icon: 'UserGroupIcon', route: '/users', roles: ['Super Admin', 'Admin'] },
   { name: 'settings', label: 'Pengaturan', icon: 'Cog6ToothIcon', route: '/settings', shortcut: 'F10', roles: ['Super Admin', 'Admin'] },

@@ -77,4 +77,35 @@ class PosquproFlowTest extends TestCase
     {
         $this->getJson('/api/v1/products')->assertStatus(401);
     }
+
+    public function test_web_login_with_seeded_user(): void
+    {
+        $response = $this->post('/login', [
+            'email' => 'cashier@posqupro.test',
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticated();
+    }
+
+    public function test_api_login_with_seeded_user(): void
+    {
+        $response = $this->postJson('/api/v1/login', [
+            'email' => 'admin@posqupro.test',
+            'password' => 'password',
+        ]);
+
+        $response->assertOk()->assertJsonStructure(['token', 'user']);
+    }
+
+    public function test_api_login_rejects_wrong_password(): void
+    {
+        $response = $this->postJson('/api/v1/login', [
+            'email' => 'admin@posqupro.test',
+            'password' => 'wrong-password',
+        ]);
+
+        $response->assertStatus(401);
+    }
 }

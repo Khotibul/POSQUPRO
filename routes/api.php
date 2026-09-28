@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\InventoryHistoryController;
 use App\Http\Controllers\Api\ParkedTransactionController;
@@ -28,6 +29,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 Route::get('/health', fn () => ['status' => 'ok', 'app' => 'POSQUPRO']);
 
@@ -50,16 +52,17 @@ Route::post('/v1/login', function (Request $request) {
         return response()->json(['message' => 'Email atau password salah.'], 401);
     }
 
-    // Auto-migrate legacy SHA256 to bcrypt on successful login
-    if (LegacyPassword::needsRehash($user->password) || LegacyPassword::needsRehash($user->password_hash)) {
+    // Auto-migrate legacy SHA256 to bcrypt on successful login (only columns that exist)
+    if (LegacyPassword::needsRehash($user->password ?? null) || LegacyPassword::needsRehash($user->password_hash ?? null)) {
         $newHash = Hash::make($plain);
-        DB::table('users')->where('id', $user->id)->update([
-            'password' => $newHash,
-            'password_hash' => $newHash,
-        ]);
+        $migrate = ['password_hash' => $newHash];
+        if (Schema::hasColumn('users', 'password')) {
+            $migrate['password'] = $newHash;
+        }
+        DB::table('users')->where('id', $user->id)->update($migrate);
     }
 
-    if ($user->is_active === false || $user->active === false) {
+    if (($user->is_active ?? true) === false || ($user->active ?? true) === false) {
         return response()->json(['message' => 'Akun telah dinonaktifkan.'], 403);
     }
 
@@ -109,6 +112,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('transactions', TransactionController::class);
     Route::apiResource('payments', PaymentController::class);
+    Route::apiResource('expenses', ExpenseController::class);
     Route::apiResource('inventory-histories', InventoryHistoryController::class);
 
     // New pos-next-js features

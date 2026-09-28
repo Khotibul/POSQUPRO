@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -25,6 +26,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.view', 'transactions.create', 'transactions.delete',
             'payments.view', 'payments.manage',
             'reports.view', 'finance.view',
+            'expenses.view', 'expenses.create', 'expenses.edit', 'expenses.delete',
             'pos.access',
             // SaaS permissions
             'tenants.view', 'tenants.create', 'tenants.edit', 'tenants.delete', 'tenants.manage',
@@ -46,6 +48,8 @@ class RolePermissionSeeder extends Seeder
 
         $superAdmin->syncPermissions(Permission::all());
         $admin->syncPermissions(Permission::all());
+        // Additive (safe on re-run): expenses for Finance
+        $finance->givePermissionTo(['expenses.view', 'expenses.create', 'expenses.edit']);
 
         $warehouseManager->syncPermissions([
             'products.view', 'products.create', 'products.edit',
@@ -88,35 +92,44 @@ class RolePermissionSeeder extends Seeder
         // Check if user exists
         $existing = User::where('email', $email)->first();
         if ($existing) {
-            // Update missing fields for Java compatibility
-            $updates = [];
-            if (empty($existing->password)) {
-                $updates['password'] = $hashed;
-            }
-            // Use DB to update password_hash, branch_id, role if columns exist
-            DB::table('users')->where('id', $existing->id)->update(array_filter([
+            // Update missing fields for Java compatibility (only columns that exist)
+            $updates = array_filter([
                 'password_hash' => $hashed,
                 'branch_id' => $existing->branch_id ?? 1,
                 'role' => $existing->role ?? $javaRole,
                 'active' => 1,
-                'is_active' => 1,
-            ]));
+            ]);
+            if (Schema::hasColumn('users', 'is_active')) {
+                $updates['is_active'] = 1;
+            }
+            if (Schema::hasColumn('users', 'password') && empty($existing->password)) {
+                // Query builder bypasses the 'hashed' cast: store pre-hashed value
+                $updates['password'] = $hashed;
+            }
+            DB::table('users')->where('id', $existing->id)->update($updates);
             $existing->assignRole($role);
 
             return;
         }
 
-        // Create new user with both Laravel and Java fields
-        $user = User::create([
+        // Create new user with both Laravel and Java fields (only columns that exist).
+        // NOTE: pass PLAIN password so the model's 'hashed' cast hashes it exactly once.
+        $createData = [
             'name' => $name,
             'email' => $email,
-            'password' => $hashed,
+            'password' => $password,
             'password_hash' => $hashed,
             'branch_id' => 1,
             'role' => $javaRole,
             'active' => 1,
-            'is_active' => true,
-        ]);
+        ];
+        if (Schema::hasColumn('users', 'is_active')) {
+            $createData['is_active'] = true;
+        }
+        if (! Schema::hasColumn('users', 'password')) {
+            unset($createData['password']);
+        }
+        $user = User::create($createData);
         $user->assignRole($role);
     }
 }

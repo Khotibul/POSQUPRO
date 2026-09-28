@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Throwable;
@@ -164,7 +165,8 @@ class GoogleAuthController extends Controller
             ]);
         }
 
-        $user = User::where('google_id', $googleId)->first();
+        $hasGoogleId = Schema::hasColumn('users', 'google_id');
+        $user = $hasGoogleId ? User::where('google_id', $googleId)->first() : null;
 
         if (! $user) {
             $user = User::where('email', $email)->first();
@@ -172,26 +174,40 @@ class GoogleAuthController extends Controller
 
         try {
             if ($user) {
-                $updateData = [
-                    'avatar' => $avatar ?? $user->avatar,
-                    'email_verified_at' => $user->email_verified_at ?? now(),
-                ];
-                if (! $user->google_id) {
+                $updateData = [];
+                if (Schema::hasColumn('users', 'avatar')) {
+                    $updateData['avatar'] = $avatar ?? $user->avatar;
+                }
+                if (Schema::hasColumn('users', 'email_verified_at')) {
+                    $updateData['email_verified_at'] = $user->email_verified_at ?? now();
+                }
+                if ($hasGoogleId && ! ($user->google_id ?? null)) {
                     $updateData['google_id'] = $googleId;
                 }
-                $user->update($updateData);
+                if ($updateData !== []) {
+                    $user->update($updateData);
+                }
             } else {
-                $user = User::create([
+                $createData = [
                     'name' => $name,
                     'email' => $email,
-                    'google_id' => $googleId,
-                    'avatar' => $avatar,
-                    'email_verified_at' => now(),
-                    'is_active' => true,
                     'active' => true,
                     'role' => 'CASHIER',
                     'password_hash' => 'google-oauth',
-                ]);
+                ];
+                if ($hasGoogleId) {
+                    $createData['google_id'] = $googleId;
+                }
+                if (Schema::hasColumn('users', 'avatar')) {
+                    $createData['avatar'] = $avatar;
+                }
+                if (Schema::hasColumn('users', 'email_verified_at')) {
+                    $createData['email_verified_at'] = now();
+                }
+                if (Schema::hasColumn('users', 'is_active')) {
+                    $createData['is_active'] = true;
+                }
+                $user = User::create($createData);
 
                 if (class_exists(Role::class)) {
                     $cashierRole = Role::where('name', 'Cashier')->first();
@@ -213,14 +229,16 @@ class GoogleAuthController extends Controller
             ]);
         }
 
-        if (! $user->is_active || $user->active === false) {
+        if (($user->is_active ?? true) === false || ($user->active ?? true) === false) {
             return redirect('/login')->withErrors([
                 'email' => 'Akun telah dinonaktifkan. Hubungi administrator.',
             ]);
         }
 
         Auth::login($user, true);
-        $user->update(['last_login_at' => now()]);
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $user->update(['last_login_at' => now()]);
+        }
 
         Log::info('Google OAuth: user logged in', ['user_id' => $user->id, 'email' => $email]);
 

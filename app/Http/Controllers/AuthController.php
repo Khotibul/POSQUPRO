@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -33,34 +34,23 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($user->is_active === false || $user->active === false) {
+        // Null-safe: bare Java schema has no is_active column (null = treat as active)
+        if (($user->is_active ?? true) === false || ($user->active ?? true) === false) {
             throw ValidationException::withMessages([
                 'email' => ['Akun Anda telah dinonaktifkan. Hubungi administrator.'],
             ]);
         }
 
         $hasPassword = Hash::isHashed($user->password ?? '') || Hash::isHashed($user->password_hash ?? '') || $user->password_hash === 'google-oauth';
-        if ($user->google_id && ! $hasPassword) {
+        if (($user->google_id ?? null) && ! $hasPassword) {
             throw ValidationException::withMessages([
                 'email' => ['Akun ini terdaftar via Google. Silakan gunakan tombol "Masuk dengan Google".'],
             ]);
         }
 
-        // Support both bcrypt and legacy SHA256 (Java desktop) - Auth::attempt only checks bcrypt via getAuthPassword()
-        $passwordValid = false;
-        $plain = $request->password;
-        // Try Laravel native (password column bcrypt)
-        if (LegacyPassword::verify($plain, $user->password) || LegacyPassword::verify($plain, $user->password_hash)) {
-            $passwordValid = true;
-            // Auto-migrate legacy SHA256 to bcrypt if needed
-            if (LegacyPassword::needsRehash($user->password) || LegacyPassword::needsRehash($user->password_hash)) {
-                $newHash = Hash::make($plain);
-                DB::table('users')->where('id', $user->id)->update([
-                    'password' => $newHash,
-                    'password_hash' => $newHash,
-                ]);
-            }
-        }
+        // Support both bcrypt and legacy SHA256 (Java desktop)
+        $passwordValid = LegacyPassword::verify($request->password, $user->password ?? null)
+            || LegacyPassword::verify($request->password, $user->password_hash ?? null);
 
         if (! $passwordValid) {
             throw ValidationException::withMessages([
@@ -68,10 +58,24 @@ class AuthController extends Controller
             ]);
         }
 
+        // Auto-migrate legacy SHA256 to bcrypt (only columns that exist)
+        if (LegacyPassword::needsRehash($user->password ?? null) || LegacyPassword::needsRehash($user->password_hash ?? null)) {
+            $newHash = Hash::make($request->password);
+            $migrate = [];
+            if (Schema::hasColumn('users', 'password')) {
+                $migrate['password'] = $newHash;
+            }
+            // password_hash always exists on Java schema (NOT NULL)
+            $migrate['password_hash'] = $newHash;
+            DB::table('users')->where('id', $user->id)->update($migrate);
+        }
+
         Auth::login($user, $request->boolean('remember'));
 
         $request->session()->regenerate();
-        $request->user()->update(['last_login_at' => now()]);
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $request->user()->update(['last_login_at' => now()]);
+        }
 
         return redirect()->intended('/dashboard');
     }

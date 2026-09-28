@@ -17,6 +17,7 @@ use App\Http\Controllers\TransactionController;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\Expense;
 use App\Models\InventoryHistory;
 use App\Models\Product;
 use App\Models\Supplier;
@@ -152,6 +153,15 @@ Route::middleware('auth')->group(function () {
             'suppliers' => Supplier::paginate(15),
         ]);
     })->name('suppliers.index');
+
+    // Expenses - shared Java/desktop table (pengeluaran operasional/kas)
+    Route::get('/expenses', function () {
+        return Inertia::render('Expenses/Index', [
+            'expenses' => Expense::with(['branch', 'user'])->latest()->paginate(15),
+            'totalMonth' => Expense::whereMonth('created_at', now()->month)->sum('amount'),
+            'branches' => Branch::select('id', 'name')->get(),
+        ]);
+    })->name('expenses.index');
 
     // New pos-next-js features
     Route::get('/register', [RegisterController::class, 'index'])->name('register.index');

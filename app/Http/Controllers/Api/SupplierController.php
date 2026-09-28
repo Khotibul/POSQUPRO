@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class SupplierController extends Controller
 {
@@ -16,6 +17,11 @@ class SupplierController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate(['name' => ['required', 'string'], 'email' => ['nullable', 'email'], 'phone' => ['nullable', 'string'], 'address' => ['nullable', 'string'], 'contact_person' => ['nullable', 'string'], 'is_active' => ['boolean']]);
+
+        // Java schema requires NOT NULL unique `code`
+        if (Schema::hasColumn('suppliers', 'code') && empty($data['code'])) {
+            $data['code'] = 'SUP-'.strtoupper(substr(md5($data['name'].microtime()), 0, 8));
+        }
 
         return Supplier::create($data);
     }
