@@ -178,15 +178,17 @@ Route::middleware('auth')->group(function () {
 
     // Master data - tampil sesuai DB posqu_pro_desktop (dedicated pages)
     Route::get('/categories', function () {
-        $cats = DB::table('product_categories')->select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Java']);
+        $cats = Schema::hasTable('product_categories')
+            ? DB::table('product_categories')->select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Java'])
+            : collect();
         $cats2 = Category::select('id', 'name')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => 'Laravel']);
         $all = $cats->merge($cats2);
 
         return Inertia::render('Categories/Index', ['categories' => Category::paginate(15), 'allCategories' => $all]);
     })->name('categories.index');
     Route::get('/units', function () {
-        $units = DB::table('units')->select('id', 'name')->get();
-        $uqs = UnitQuantity::select('id', 'name', 'symbol')->get();
+        $units = Schema::hasTable('units') ? DB::table('units')->select('id', 'name')->get() : [];
+        $uqs = Schema::hasTable('unit_quantities') ? UnitQuantity::select('id', 'name', 'symbol')->get() : [];
 
         return Inertia::render('Units/Index', ['units' => UnitQuantity::paginate(15), 'allUnits' => $units, 'unitQuantities' => $uqs]);
     })->name('units.index');

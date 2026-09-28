@@ -6,6 +6,7 @@ use App\Models\PaymentMethod;
 use App\Models\Tax;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class SettingController extends Controller
@@ -25,9 +26,9 @@ class SettingController extends Controller
 
         return Inertia::render('Settings/Index', [
             'settings' => $settings,
-            'taxes' => Tax::orderBy('name')->get(),
-            'paymentMethods' => PaymentMethod::orderBy('name')->get(),
-            'branches' => DB::table('branches')->where('active', 1)->get(),
+            'taxes' => Schema::hasTable('taxes') ? Tax::orderBy('name')->get() : [],
+            'paymentMethods' => Schema::hasTable('payment_methods') ? PaymentMethod::orderBy('name')->get() : [],
+            'branches' => Schema::hasTable('branches') ? DB::table('branches')->where('active', 1)->get() : [],
         ]);
     }
 
@@ -40,10 +41,16 @@ class SettingController extends Controller
             'settings.*.value' => ['nullable', 'string'],
         ]);
 
+        $touchUpdatedAt = Schema::hasColumn('settings', 'updated_at');
+
         foreach ($data['settings'] as $item) {
+            $update = ['setting_value' => $item['value'] ?? ''];
+            if ($touchUpdatedAt) {
+                $update['updated_at'] = now();
+            }
             DB::table('settings')
                 ->where('setting_key', $item['key'])
-                ->update(['setting_value' => $item['value'] ?? '', 'updated_at' => now()]);
+                ->update($update);
         }
 
         return redirect()->back()->with('success', 'Pengaturan '.$data['group'].' disimpan!');
