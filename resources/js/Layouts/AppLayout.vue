@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { usePage, router } from '@inertiajs/vue3'
 import { useAppLayout } from '@/Composables/useAppLayout'
 import { useToast } from '@/Composables/useToast'
 import AppSidebar from '@/Components/Layout/AppSidebar.vue'
@@ -8,37 +8,69 @@ import AppHeader from '@/Components/Layout/AppHeader.vue'
 import ToastContainer from '@/Components/UI/ToastContainer.vue'
 
 const page = usePage()
-const { navItems, sidebarCollapsed, mobileSidebarOpen, isMobile, toggleSidebar, closeMobileSidebar } = useAppLayout()
+
+let removeInertiaStartListener = null
+
+const {
+  navItems,
+  sidebarCollapsed,
+  mobileSidebarOpen,
+  isMobile,
+  toggleSidebar,
+  closeMobileSidebar
+} = useAppLayout()
+
 const { toasts, remove } = useToast()
 
 const user = computed(() => page.props.auth?.user)
-const canAccess = (item) => !item.roles || item.roles.some(r => user.value?.roles?.includes(r))
+
+const canAccess = (item) =>
+  !item.roles || item.roles.some(r => user.value?.roles?.includes(r))
+
 const filteredNav = computed(() => navItems.filter(canAccess))
 
 function handleKeydown(e) {
   if (!isMobile.value && e.key.startsWith('F') && e.key.length <= 3) {
     const num = parseInt(e.key.slice(1))
+
     if (num >= 1 && num <= 12) {
       e.preventDefault()
+
       const item = filteredNav.value.find(i => i.shortcut === e.key)
-      if (item) window.location.href = item.route
+
+      if (item) {
+        window.location.href = item.route
+      }
     }
   }
-  if (e.key === 'Escape' && mobileSidebarOpen.value) closeMobileSidebar()
+
+  if (e.key === 'Escape' && mobileSidebarOpen.value) {
+    closeMobileSidebar()
+  }
 }
 
-// Close mobile sidebar on Inertia navigation
 function handleInertiaStart() {
-  if (isMobile.value) closeMobileSidebar()
+  if (isMobile.value) {
+    closeMobileSidebar()
+  }
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  page.on('start', handleInertiaStart)
+
+  removeInertiaStartListener = router.on(
+    'start',
+    handleInertiaStart
+  )
 })
+
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  page.on('start', handleInertiaStart)
+
+  if (removeInertiaStartListener) {
+    removeInertiaStartListener()
+    removeInertiaStartListener = null
+  }
 })
 </script>
 <template>
