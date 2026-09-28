@@ -64,6 +64,7 @@ class SaleService
                 $stockBefore = (int) $product->stock;
                 $lineSubtotal = $item['quantity'] * $item['unit_price'] - ($item['discount'] ?? 0);
 
+                // Java `sale_items` has no `cost` column
                 DB::table('sale_items')->insert([
                     'sale_id' => $saleId,
                     'product_id' => $product->id,
@@ -71,7 +72,6 @@ class SaleService
                     'product_name' => $product->name,
                     'qty' => $item['quantity'],
                     'price' => $item['unit_price'],
-                    'cost' => $product->cost_price ?? $product->cost ?? 0,
                     'discount' => $item['discount'] ?? 0,
                     'tax' => $item['tax'] ?? 0,
                     'subtotal' => $lineSubtotal,
@@ -111,15 +111,12 @@ class SaleService
                 }
             }
 
-            // 5. Insert into `payments` (Java table) with `sale_id`
+            // 5. Insert into `payments` (Java table: sale_id, method, amount, reference_no, created_at)
             $paymentMethod = strtoupper($data['payment']['method'] ?? 'CASH');
             DB::table('payments')->insert([
                 'sale_id' => $saleId,
-                'transaction_id' => null,
                 'amount' => $paidAmount,
                 'method' => $paymentMethod,
-                'status' => 'success',
-                'paid_at' => now(),
                 'reference_no' => $data['payment']['reference_no'] ?? null,
                 'created_at' => now(),
             ]);
@@ -140,23 +137,24 @@ class SaleService
     private function getCurrentShiftId(int $branchId): int
     {
         try {
+            // Java `shifts` has no created_at column — order by opened_at
             $shift = DB::table('shifts')
                 ->where('branch_id', $branchId)
                 ->where('status', 'OPEN')
-                ->latest()
+                ->orderByDesc('opened_at')
+                ->orderByDesc('id')
                 ->first();
 
             if ($shift) {
                 return $shift->id;
             }
 
-            // No OPEN shift found — create one
+            // No OPEN shift found — create one (Java columns only)
             return DB::table('shifts')->insertGetId([
                 'branch_id' => $branchId,
                 'user_id' => auth()->id() ?? 1,
                 'status' => 'OPEN',
                 'opened_at' => now(),
-                'created_at' => now(),
             ]);
         } catch (\Exception $e) {
             // Table doesn't exist (SQLite tests) or other error — return 0 to skip FK

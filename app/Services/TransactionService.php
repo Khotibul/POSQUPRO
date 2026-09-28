@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -100,16 +101,21 @@ class TransactionService
                 }
             }
 
-            // Create payment record
-            if (! empty($data['payment'])) {
+            // Create payment record (only on Laravel-style schema with transaction_id;
+            // the shared Java `payments` table links via sale_id and is written by SaleService)
+            if (! empty($data['payment']) && Schema::hasColumn('payments', 'transaction_id')) {
                 $method = strtolower($data['payment']['method'] ?? 'cash');
-                $transaction->payments()->create([
-                    'sale_id' => 0,
+                $paymentData = [
                     'amount' => $data['payment']['amount'] ?? $total,
                     'method' => $method,
-                    'status' => 'success',
-                    'paid_at' => now(),
-                ]);
+                ];
+                if (Schema::hasColumn('payments', 'status')) {
+                    $paymentData['status'] = 'success';
+                }
+                if (Schema::hasColumn('payments', 'paid_at')) {
+                    $paymentData['paid_at'] = now();
+                }
+                $transaction->payments()->create($paymentData);
             }
 
             return $transaction->load(['items.product', 'customer', 'supplier', 'payments', 'user']);

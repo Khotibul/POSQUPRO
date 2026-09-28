@@ -21,9 +21,10 @@ class FinanceController extends Controller
             'month_revenue' => (clone $month)->sum('total'),
             'month_transactions' => (clone $month)->count(),
             'low_stock_count' => Product::whereColumn('stock', '<=', 'min_stock')->count(),
-            'by_payment_method' => Transaction::join('payments', 'payments.transaction_id', '=', 'transactions.id')
-                ->select('payments.method', DB::raw('SUM(payments.amount) as total'))
-                ->groupBy('payments.method')->get(),
+            // Java `payments` table links via sale_id (no transaction_id column)
+            'by_payment_method' => DB::table('payments')
+                ->select('method', DB::raw('SUM(amount) as total'))
+                ->groupBy('method')->get(),
         ]);
     }
 }

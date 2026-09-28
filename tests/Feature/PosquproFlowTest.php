@@ -108,4 +108,39 @@ class PosquproFlowTest extends TestCase
 
         $response->assertStatus(401);
     }
+
+    public function test_pos_page_loads_for_cashier(): void
+    {
+        $user = User::role('Cashier')->first();
+
+        $this->actingAs($user)->get('/pos')->assertOk();
+    }
+
+    public function test_main_pages_render_for_admin(): void
+    {
+        $user = User::role('Admin')->first();
+
+        foreach (['/dashboard', '/pos', '/products', '/customers', '/suppliers', '/transactions', '/reports', '/inventory', '/expenses'] as $path) {
+            $this->actingAs($user)->get($path)->assertOk();
+        }
+    }
+
+    public function test_pos_checkout_creates_sale(): void
+    {
+        $user = User::role('Cashier')->first();
+        $product = Product::first();
+        $price = (int) $product->selling_price;
+
+        $response = $this->actingAs($user)->post('/pos/checkout', [
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => $price],
+            ],
+            'paid_amount' => $price,
+            'payment' => ['method' => 'cash', 'amount' => $price],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('sales', ['status' => 'PAID']);
+        $this->assertDatabaseHas('payments', ['method' => 'CASH']);
+    }
 }

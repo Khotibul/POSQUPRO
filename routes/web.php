@@ -133,10 +133,11 @@ Route::middleware('auth')->group(function () {
             'topProducts' => TransactionItem::select('product_id', DB::raw('SUM(quantity) as qty'), DB::raw('SUM(subtotal) as revenue'))
                 ->whereHas('transaction', fn ($q) => $q->where('type', 'sell')->where('status', 'completed')->whereDate('created_at', '>=', now()->subDays(30)))
                 ->groupBy('product_id')->orderByDesc('qty')->with('product')->limit(10)->get(),
-            'paymentBreakdown' => Transaction::join('payments', 'payments.transaction_id', '=', 'transactions.id')
-                ->whereDate('transactions.created_at', today())
-                ->select('payments.method', DB::raw('SUM(payments.amount) as total'))
-                ->groupBy('payments.method')->get(),
+            // Java `payments` table links via sale_id (no transaction_id column)
+            'paymentBreakdown' => DB::table('payments')
+                ->whereDate('created_at', today())
+                ->select('method', DB::raw('SUM(amount) as total'))
+                ->groupBy('method')->get(),
         ]);
     })->name('reports.index');
 
@@ -159,7 +160,7 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Expenses/Index', [
             'expenses' => Expense::with(['branch', 'user'])->latest()->paginate(15),
             'totalMonth' => Expense::whereMonth('created_at', now()->month)->sum('amount'),
-            'branches' => Branch::select('id', 'name')->get(),
+            'branches' => Schema::hasTable('branches') ? Branch::select('id', 'name')->get() : [],
         ]);
     })->name('expenses.index');
 
