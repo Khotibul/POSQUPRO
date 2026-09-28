@@ -8,8 +8,8 @@ use App\Models\ParkedTransaction;
 use App\Models\Product;
 use App\Services\ParkedTransactionService;
 use App\Services\SaleService;
+use App\Support\SettingsStore;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PosController extends Controller
@@ -132,10 +132,8 @@ class PosController extends Controller
 
     private function getPosSettings(): array
     {
-        $rows = DB::table('settings')
-            ->whereNotNull('setting_key')
-            ->pluck('setting_value', 'setting_key')
-            ->toArray();
+        // Schema-aware: works with both Laravel-style and Java-style settings tables
+        $rows = SettingsStore::map();
 
         return [
             'store_name' => $rows['store.name'] ?? 'TOKO POSQU PRO',

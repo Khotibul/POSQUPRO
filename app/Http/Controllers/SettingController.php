@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymentMethod;
 use App\Models\Tax;
+use App\Support\SettingsStore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,19 +14,10 @@ class SettingController extends Controller
 {
     public function index()
     {
-        // Load settings from Java columns (setting_key/setting_value/setting_group)
-        $settings = DB::table('settings')
-            ->whereNotNull('setting_key')
-            ->get()
-            ->map(fn ($s) => [
-                'id' => $s->id,
-                'key' => $s->setting_key,
-                'value' => $s->setting_value,
-                'group' => $s->setting_group,
-            ]);
-
+        // Schema-aware: works with Laravel-style (key/value/group) and Java-style
+        // (setting_key/setting_value/setting_group) settings tables.
         return Inertia::render('Settings/Index', [
-            'settings' => $settings,
+            'settings' => SettingsStore::all(),
             'taxes' => Schema::hasTable('taxes') ? Tax::orderBy('name')->get() : [],
             'paymentMethods' => Schema::hasTable('payment_methods') ? PaymentMethod::orderBy('name')->get() : [],
             'branches' => Schema::hasTable('branches') ? DB::table('branches')->where('active', 1)->get() : [],
@@ -41,16 +33,8 @@ class SettingController extends Controller
             'settings.*.value' => ['nullable', 'string'],
         ]);
 
-        $touchUpdatedAt = Schema::hasColumn('settings', 'updated_at');
-
         foreach ($data['settings'] as $item) {
-            $update = ['setting_value' => $item['value'] ?? ''];
-            if ($touchUpdatedAt) {
-                $update['updated_at'] = now();
-            }
-            DB::table('settings')
-                ->where('setting_key', $item['key'])
-                ->update($update);
+            SettingsStore::set($item['key'], $item['value'] ?? '', $data['group']);
         }
 
         return redirect()->back()->with('success', 'Pengaturan '.$data['group'].' disimpan!');
