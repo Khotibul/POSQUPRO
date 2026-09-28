@@ -97,7 +97,7 @@ class RepairSchemaCommand extends Command
             }
         }
 
-        foreach (['expenses', 'payment_methods'] as $table) {
+        foreach (['expenses', 'payment_methods', 'units', 'branches', 'warehouses'] as $table) {
             if (! Schema::hasTable($table)) {
                 $this->warn("table missing: {$table} (run php artisan migrate)");
                 $problems++;
