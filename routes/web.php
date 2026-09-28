@@ -89,14 +89,14 @@ Route::middleware('auth')->group(function () {
             'suppliers' => Supplier::all(),
             'filters' => $request->only(['search', 'category_id', 'type']),
         ]);
-    })->name('products.index');
+    })->name('web.products.index');
 
     // Customers
     Route::get('/customers', function () {
         return Inertia::render('Customers/Index', [
             'customers' => Customer::latest()->paginate(15),
         ]);
-    })->name('customers.index');
+    })->name('web.customers.index');
 
     // Inventory - tampil sesuai DB (jika inventory_histories kosong, tampilkan stock_movements Java)
     Route::get('/inventory', function () {
@@ -113,7 +113,7 @@ Route::middleware('auth')->group(function () {
     })->name('inventory.index');
 
     // Transactions
-    Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
+    Route::get('/transactions', [TransactionController::class, 'index'])->name('web.transactions.index');
 
     // Reports
     Route::get('/reports', function () {
@@ -147,13 +147,13 @@ Route::middleware('auth')->group(function () {
             'users' => User::with('roles')->paginate(15),
             'roles' => Role::all(),
         ]);
-    })->name('users.index');
+    })->name('web.users.index');
 
     Route::get('/suppliers', function () {
         return Inertia::render('Suppliers/Index', [
             'suppliers' => Supplier::paginate(15),
         ]);
-    })->name('suppliers.index');
+    })->name('web.suppliers.index');
 
     // Expenses - shared Java/desktop table (pengeluaran operasional/kas)
     Route::get('/expenses', function () {
@@ -162,14 +162,14 @@ Route::middleware('auth')->group(function () {
             'totalMonth' => Expense::whereMonth('created_at', now()->month)->sum('amount'),
             'branches' => Schema::hasTable('branches') ? Branch::select('id', 'name')->get() : [],
         ]);
-    })->name('expenses.index');
+    })->name('web.expenses.index');
 
     // New pos-next-js features
     Route::get('/register', [RegisterController::class, 'index'])->name('register.index');
-    Route::get('/parked-transactions', [ParkedTransactionController::class, 'index'])->name('parked-transactions.index');
-    Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
-    Route::get('/stock-counts', [StockCountController::class, 'index'])->name('stock-counts.index');
-    Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+    Route::get('/parked-transactions', [ParkedTransactionController::class, 'index'])->name('web.parked-transactions.index');
+    Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('web.purchase-orders.index');
+    Route::get('/stock-counts', [StockCountController::class, 'index'])->name('web.stock-counts.index');
+    Route::get('/settings', [SettingController::class, 'index'])->name('web.settings.index');
     Route::post('/settings', [SettingController::class, 'updateGroup'])->name('settings.updateGroup');
     Route::post('/settings/tax', [SettingController::class, 'storeTax'])->name('settings.storeTax');
     Route::put('/settings/tax/{id}', [SettingController::class, 'updateTax'])->name('settings.updateTax');
@@ -185,21 +185,21 @@ Route::middleware('auth')->group(function () {
         $all = $cats->merge($cats2);
 
         return Inertia::render('Categories/Index', ['categories' => Category::paginate(15), 'allCategories' => $all]);
-    })->name('categories.index');
+    })->name('web.categories.index');
     Route::get('/units', function () {
         $units = Schema::hasTable('units') ? DB::table('units')->select('id', 'name')->get() : [];
         $uqs = Schema::hasTable('unit_quantities') ? UnitQuantity::select('id', 'name', 'symbol')->get() : [];
 
         return Inertia::render('Units/Index', ['units' => UnitQuantity::paginate(15), 'allUnits' => $units, 'unitQuantities' => $uqs]);
     })->name('units.index');
-    Route::get('/taxes', fn () => Inertia::render('Taxes/Index', ['taxes' => Tax::paginate(15)]))->name('taxes.index');
-    Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => Branch::with('warehouses')->paginate(15)]))->name('branches.index');
+    Route::get('/taxes', fn () => Inertia::render('Taxes/Index', ['taxes' => Tax::paginate(15)]))->name('web.taxes.index');
+    Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => Branch::with('warehouses')->paginate(15)]))->name('web.branches.index');
     Route::get('/warehouses', function () {
         return Inertia::render('Warehouses/Index', [
             'warehouses' => Warehouse::with('branch')->paginate(15),
             'branches' => Branch::select('id', 'name', 'code')->get(),
         ]);
-    })->name('warehouses.index');
+    })->name('web.warehouses.index');
 
     // ═══════════════════════════════════════════════════════════════
     // SaaS Management - Super Admin Owner
