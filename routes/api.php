@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\InventoryHistoryController;
+use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\ParkedTransactionController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
@@ -32,6 +33,11 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 Route::get('/health', fn () => ['status' => 'ok', 'app' => 'POSQUPRO']);
+
+// Desktop (Java SaaSClient) license + monitoring endpoints, X-API-Key auth
+Route::post('/license/validate', [LicenseController::class, 'validate']);
+Route::post('/monitoring/update', [LicenseController::class, 'monitoring']);
+Route::post('/payment/update', [LicenseController::class, 'payment']);
 
 // Mobile Auth (Sanctum token-based)
 Route::post('/v1/login', function (Request $request) {
@@ -78,6 +84,8 @@ Route::post('/v1/login', function (Request $request) {
 
     $token = $user->createToken('mobile-app')->plainTextToken;
 
+    $tenant = ($user->tenant_id ?? null) ? $user->tenant()->with('plan')->first() : null;
+
     return response()->json([
         'token' => $token,
         'user' => [
@@ -85,8 +93,17 @@ Route::post('/v1/login', function (Request $request) {
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'avatar' => $user->avatar,
+            'avatar' => $user->avatar ?? null,
+            'tenant_id' => $user->tenant_id ?? null,
         ],
+        'tenant' => $tenant ? [
+            'id' => $tenant->id,
+            'name' => $tenant->name,
+            'slug' => $tenant->slug,
+            'status' => $tenant->status,
+            'license_code' => $tenant->license_code ?? null,
+            'plan' => $tenant->plan ? ['id' => $tenant->plan->id, 'name' => $tenant->plan->name] : null,
+        ] : null,
     ]);
 });
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class Tenant extends Model
@@ -17,6 +18,8 @@ class Tenant extends Model
     protected $fillable = [
         'name',
         'slug',
+        'license_code',
+        'api_key',
         'email',
         'phone',
         'address',
@@ -32,6 +35,7 @@ class Tenant extends Model
         'trial_ends_at',
         'suspended_at',
         'suspension_reason',
+        'last_seen_at',
         'settings',
         'is_active',
     ];
@@ -39,6 +43,7 @@ class Tenant extends Model
     protected $casts = [
         'trial_ends_at' => 'datetime',
         'suspended_at' => 'datetime',
+        'last_seen_at' => 'datetime',
         'settings' => 'array',
         'is_active' => 'boolean',
     ];
@@ -49,7 +54,21 @@ class Tenant extends Model
             if (empty($tenant->slug)) {
                 $tenant->slug = Str::slug($tenant->name);
             }
+            if (empty($tenant->license_code) && Schema::hasColumn('tenants', 'license_code')) {
+                $tenant->license_code = self::makeLicenseCode($tenant->slug ?: $tenant->name);
+            }
+            if (empty($tenant->api_key) && Schema::hasColumn('tenants', 'api_key')) {
+                $tenant->api_key = Str::random(40);
+            }
         });
+    }
+
+    public static function makeLicenseCode(string $seed): string
+    {
+        $clean = preg_replace('/[^A-Za-z0-9]/', '', Str::ascii($seed));
+        $clean = substr(str_pad(strtoupper($clean), 4, 'X'), 0, 6);
+
+        return 'PQ-'.$clean.'-'.strtoupper(Str::random(6));
     }
 
     public function owner(): BelongsTo

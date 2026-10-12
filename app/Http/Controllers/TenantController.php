@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 class TenantController extends Controller
 {
@@ -44,7 +49,8 @@ class TenantController extends Controller
             'city' => 'nullable|string|max:100',
             'province' => 'nullable|string|max:100',
             'owner_name' => 'nullable|string|max:255',
-            'owner_email' => 'nullable|email|max:255',
+            'owner_email' => 'nullable|email|max:255|unique:users,email',
+            'owner_password' => 'nullable|string|min:8',
             'plan_id' => 'nullable|exists:plans,id',
         ]);
 
@@ -60,7 +66,42 @@ class TenantController extends Controller
             'trial_ends_at' => now()->addDays(14),
         ]);
 
-        return redirect()->route('tenants.index')->with('success', "Tenant \"{$tenant->name}\" dibuat");
+        // Create the tenant admin account (usable on website + desktop Java login)
+        $adminMessage = '';
+        if (! empty($validated['owner_email'])) {
+            $plainPassword = $validated['owner_password'] ?? Str::random(12);
+            $hashed = Hash::make($plainPassword);
+            $adminData = [
+                'name' => $validated['owner_name'] ?: $validated['name'].' Admin',
+                'email' => $validated['owner_email'],
+                // Pass PLAIN so the model's 'hashed' cast hashes exactly once
+                'password' => $plainPassword,
+                'password_hash' => $hashed,
+                'branch_id' => 1,
+                'role' => 'ADMIN',
+                'active' => 1,
+                'tenant_id' => $tenant->id,
+            ];
+            if (! Schema::hasColumn('users', 'password')) {
+                unset($adminData['password']);
+            }
+            if (! Schema::hasColumn('users', 'is_active')) {
+                unset($adminData['is_active']);
+            } else {
+                $adminData['is_active'] = true;
+            }
+            if (! Schema::hasColumn('users', 'tenant_id')) {
+                unset($adminData['tenant_id']);
+            }
+            $admin = User::create($adminData);
+            if (class_exists(Role::class)) {
+                $admin->assignRole('Admin');
+            }
+            $tenant->update(['owner_id' => $admin->id]);
+            $adminMessage = " Akun admin: {$admin->email} / password: {$plainPassword}";
+        }
+
+        return redirect()->route('tenants.index')->with('success', "Tenant \"{$tenant->name}\" dibuat.{$adminMessage}");
     }
 
     public function show(Tenant $tenant)

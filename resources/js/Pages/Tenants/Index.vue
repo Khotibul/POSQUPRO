@@ -28,7 +28,7 @@ const showModal = ref(false)
 const loading = ref(false)
 const form = ref({
   name: '', email: '', phone: '', address: '', city: '', province: '',
-  owner_name: '', owner_email: '', plan_id: null,
+  owner_name: '', owner_email: '', owner_password: '', plan_id: null,
 })
 
 const statusColor = { active: 'success', trial: 'info', suspended: 'danger', inactive: 'warning' }
@@ -40,17 +40,18 @@ function renderStatus(row) {
 }
 
 const columns = [
-  { key: 'name', label: 'Tenant' },
-  { key: 'owner.name', label: 'Pemilik', width: 140 },
-  { key: 'plan.name', label: 'Paket', width: 100 },
-  { key: 'status', label: 'Status', width: 100, align: 'center', render: renderStatus },
-  { key: 'email', label: 'Email', width: 200 },
-]
+    { key: 'name', label: 'Tenant' },
+    { key: 'owner.name', label: 'Pemilik', width: 140 },
+    { key: 'license_code', label: 'Kode Lisensi', width: 170, render: (row) => row.license_code || '-' },
+    { key: 'plan.name', label: 'Paket', width: 100 },
+    { key: 'status', label: 'Status', width: 100, align: 'center', render: renderStatus },
+    { key: 'email', label: 'Email', width: 200 },
+  ]
 
 const filteredData = ref([])
 
 function openCreate() {
-  form.value = { name: '', email: '', phone: '', address: '', city: '', province: '', owner_name: '', owner_email: '', plan_id: null }
+  form.value = { name: '', email: '', phone: '', address: '', city: '', province: '', owner_name: '', owner_email: '', owner_password: '', plan_id: null }
   showModal.value = true
 }
 
@@ -198,7 +199,11 @@ function deleteTenant(tenant) {
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">Email Pemilik</label>
-            <input v-model="form.owner_email" type="email" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            <input v-model="form.owner_email" type="email" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Akun admin tenant (login web + desktop)" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Password Admin</label>
+            <input v-model="form.owner_password" type="password" minlength="8" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Min. 8 karakter (otomatis jika kosong)" />
           </div>
           <div class="col-span-2">
             <label class="block text-sm font-medium mb-1">Paket</label>

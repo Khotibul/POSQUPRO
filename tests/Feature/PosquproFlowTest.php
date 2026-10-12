@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SaleService;
 use Database\Seeders\PosquproSeeder;
@@ -114,6 +115,51 @@ class PosquproFlowTest extends TestCase
         $user = User::role('Cashier')->first();
 
         $this->actingAs($user)->get('/pos')->assertOk();
+    }
+
+    public function test_tenant_store_creates_admin_account(): void
+    {
+        $admin = User::role('Super Admin')->first();
+
+        $response = $this->actingAs($admin)->post('/tenants', [
+            'name' => 'Tenant Test Co',
+            'owner_name' => 'Tenant Owner',
+            'owner_email' => 'owner@tenanttest.test',
+            'owner_password' => 'password123',
+        ]);
+
+        $response->assertRedirect(route('tenants.index'));
+        $this->assertDatabaseHas('tenants', ['name' => 'Tenant Test Co']);
+        $tenantUser = User::where('email', 'owner@tenanttest.test')->first();
+        $this->assertNotNull($tenantUser);
+        $this->assertEquals('ADMIN', $tenantUser->role);
+        $this->assertNotNull($tenantUser->tenant_id);
+        $this->assertTrue($tenantUser->hasRole('Admin'));
+
+        // Admin tenant can login via web
+        $this->post('/login', ['email' => 'owner@tenanttest.test', 'password' => 'password123'])
+            ->assertRedirect('/dashboard');
+    }
+
+    public function test_license_validate_endpoint(): void
+    {
+        $tenant = Tenant::create(['name' => 'License Test Co', 'status' => 'active']);
+
+        // Valid code + key
+        $this->postJson('/api/license/validate', ['licenseCode' => $tenant->license_code], ['X-API-Key' => $tenant->api_key])
+            ->assertOk()
+            ->assertJson(['valid' => true, 'licenseCode' => $tenant->license_code]);
+
+        // Unknown code
+        $this->postJson('/api/license/validate', ['licenseCode' => 'PQ-NOPE-XXXXXX'])
+            ->assertNotFound()
+            ->assertJson(['valid' => false]);
+
+        // Suspended tenant blocked
+        $tenant->update(['status' => 'suspended']);
+        $this->postJson('/api/license/validate', ['licenseCode' => $tenant->license_code], ['X-API-Key' => $tenant->api_key ?? ''])
+            ->assertStatus(403)
+            ->assertJson(['valid' => false]);
     }
 
     public function test_main_pages_render_for_admin(): void
