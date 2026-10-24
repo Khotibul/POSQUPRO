@@ -23,8 +23,16 @@ import 'screens/transactions_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/stock_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/db_setup_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/parked_screen.dart';
+import 'screens/expenses_screen.dart';
+import 'screens/purchase_orders_screen.dart';
+import 'screens/stock_counts_screen.dart';
+import 'screens/users_screen.dart';
+import 'screens/master_data_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -60,12 +68,28 @@ class PosquproApp extends StatelessWidget {
         home: const SplashOrLoginWrapper(),
         onGenerateRoute: (settings) {
           switch (settings.name) {
+            case '/db-setup':
+              return MaterialPageRoute(builder: (_) => DbSetupScreen(onConfigured: () {}));
             case '/login':
               return MaterialPageRoute(builder: (_) => const LoginScreen());
             case '/home':
               return MaterialPageRoute(builder: (_) => const HomeScreen());
             case '/pos':
               return MaterialPageRoute(builder: (_) => const PosScreen());
+            case '/register':
+              return MaterialPageRoute(builder: (_) => const RegisterScreen());
+            case '/parked':
+              return MaterialPageRoute(builder: (_) => const ParkedScreen());
+            case '/expenses':
+              return MaterialPageRoute(builder: (_) => const ExpensesScreen());
+            case '/purchase-orders':
+              return MaterialPageRoute(builder: (_) => const PurchaseOrdersScreen());
+            case '/stock-counts':
+              return MaterialPageRoute(builder: (_) => const StockCountsScreen());
+            case '/users':
+              return MaterialPageRoute(builder: (_) => const UsersScreen());
+            case '/master-data':
+              return MaterialPageRoute(builder: (_) => const MasterDataScreen());
             case '/products':
               return MaterialPageRoute(builder: (_) => const ProductsScreen());
             case '/customers':

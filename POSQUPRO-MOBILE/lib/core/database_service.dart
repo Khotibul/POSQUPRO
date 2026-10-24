@@ -1,4 +1,5 @@
 import 'package:mysql_client/mysql_client.dart';
+import '../models/db_config.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -6,16 +7,29 @@ class DatabaseService {
   DatabaseService._internal();
 
   MySQLConnection? _connection;
+  DbConfig? _config;
+
+  void setConfig(DbConfig config) {
+    _config = config;
+    _connection = null;
+  }
+
+  DbConfig? get config => _config;
 
   Future<MySQLConnection> get connection async {
     if (_connection != null && _connection!.connected) return _connection!;
 
+    final cfg = _config;
+    if (cfg == null || cfg.mode != 'wifi') {
+      throw Exception('DatabaseService hanya untuk mode WiFi/LAN');
+    }
+
     _connection = await MySQLConnection.createConnection(
-      host: '127.0.0.1',
-      port: 3306,
-      userName: 'root',
-      password: 'khotibul185\$\$',
-      databaseName: 'posqu_pro_desktop',
+      host: cfg.host,
+      port: cfg.port,
+      userName: cfg.user,
+      password: cfg.password,
+      databaseName: cfg.database,
     );
 
     await _connection!.connect();

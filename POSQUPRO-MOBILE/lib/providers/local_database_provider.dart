@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../core/database_config_service.dart';
 import '../core/database_service.dart';
+import '../models/db_config.dart';
 import '../models/product.dart';
 import '../models/customer.dart';
 import '../models/supplier.dart';
@@ -16,6 +18,7 @@ class LocalDatabaseProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isConnected = false;
   String? _error;
+  DbConfig? _config;
 
   List<Product> get products => _products;
   List<Customer> get customers => _customers;
@@ -25,6 +28,23 @@ class LocalDatabaseProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isConnected => _isConnected;
   String? get error => _error;
+  DbConfig? get config => _config;
+  String get mode => _config?.mode ?? 'unknown';
+
+  void setDbConfig(DbConfig config) {
+    _config = config;
+    if (config.mode == 'wifi') {
+      _db.setConfig(config);
+    }
+    notifyListeners();
+  }
+
+  Future<void> initFromSaved() async {
+    final cfg = await DatabaseConfigService().getConfig();
+    if (cfg != null) {
+      setDbConfig(cfg);
+    }
+  }
 
   Future<bool> connect() async {
     _isLoading = true;
@@ -32,9 +52,17 @@ class LocalDatabaseProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _db.connection;
-      _isConnected = true;
-      _error = null;
+      if (_config?.mode == 'wifi') {
+        await _db.connection;
+        _isConnected = true;
+        _error = null;
+      } else if (_config?.mode == 'hosting') {
+        _isConnected = true;
+        _error = null;
+      } else {
+        _isConnected = true; // offline
+        _error = null;
+      }
     } catch (e) {
       _isConnected = false;
       _error = 'Gagal koneksi database: $e';
@@ -46,6 +74,11 @@ class LocalDatabaseProvider extends ChangeNotifier {
   }
 
   Future<void> loadAll() async {
+    if (_config?.mode != 'wifi') {
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
     if (!_isConnected) {
       final connected = await connect();
       if (!connected) return;

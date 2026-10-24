@@ -22,6 +22,11 @@ class ApiService {
     ApiConstants.baseUrl = url;
   }
 
+  void initFromConfig(String baseUrl) {
+    _baseUrl = baseUrl;
+    ApiConstants.baseUrl = baseUrl;
+  }
+
   Future<Map<String, String>> _headers() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(AppConstants.tokenKey);

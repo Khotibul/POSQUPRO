@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../core/database_config_service.dart';
 import '../core/theme.dart';
+import '../providers/auth_provider.dart';
+import 'db_setup_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback? onInitializationComplete;
@@ -23,8 +27,42 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _controller.forward();
 
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) widget.onInitializationComplete?.call();
+      if (!mounted) return;
+      _checkAndGo();
     });
+  }
+
+  Future<void> _goNext() async {
+    if (!mounted) return;
+    if (widget.onInitializationComplete != null) {
+      widget.onInitializationComplete!.call();
+      return;
+    }
+    final auth = context.read<AuthProvider>();
+    final loggedIn = await auth.tryAutoLogin();
+    if (!mounted) return;
+    if (loggedIn) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  Future<void> _checkAndGo() async {
+    if (!mounted) return;
+    final cfg = DatabaseConfigService();
+    final configured = await cfg.isConfigured();
+    if (!configured) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DbSetupScreen(onConfigured: () => _goNext()),
+        ),
+      );
+      return;
+    }
+    await _goNext();
   }
 
   @override
