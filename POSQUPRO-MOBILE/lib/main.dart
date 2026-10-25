@@ -35,6 +35,7 @@ import 'screens/activity_logs_screen.dart';
 import 'screens/saas_dashboard_screen.dart';
 import 'screens/tenants_screen.dart';
 import 'screens/inventory_history_screen.dart';
+import 'screens/payments_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,6 +103,8 @@ class PosquproApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const TenantsScreen());
             case '/inventory-histories':
               return MaterialPageRoute(builder: (_) => const InventoryHistoryScreen());
+            case '/payments':
+              return MaterialPageRoute(builder: (_) => const PaymentsScreen());
             case '/products':
               return MaterialPageRoute(builder: (_) => const ProductsScreen());
             case '/customers':

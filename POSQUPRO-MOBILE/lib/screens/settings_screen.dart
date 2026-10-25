@@ -106,6 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _NavTile(icon: Icons.shopping_bag_rounded, title: 'Purchase Order', onTap: () => Navigator.pushNamed(context, '/purchase-orders')),
                 _NavTile(icon: Icons.fact_check_rounded, title: 'Stock Count', onTap: () => Navigator.pushNamed(context, '/stock-counts')),
                 _NavTile(icon: Icons.inventory_rounded, title: 'Riwayat Inventori', onTap: () => Navigator.pushNamed(context, '/inventory-histories')),
+                _NavTile(icon: Icons.payments_rounded, title: 'Pembayaran', onTap: () => Navigator.pushNamed(context, '/payments')),
                 _NavTile(icon: Icons.people_alt_rounded, title: 'Pengguna', onTap: () => Navigator.pushNamed(context, '/users')),
                 _NavTile(icon: Icons.category_rounded, title: 'Master Data', onTap: () => Navigator.pushNamed(context, '/master-data')),
                 _NavTile(icon: Icons.history_rounded, title: 'Log Aktivitas', onTap: () => Navigator.pushNamed(context, '/activity-logs')),
