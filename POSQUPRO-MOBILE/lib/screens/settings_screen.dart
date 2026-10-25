@@ -112,6 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _NavTile(icon: Icons.history_rounded, title: 'Log Aktivitas', onTap: () => Navigator.pushNamed(context, '/activity-logs')),
                 _NavTile(icon: Icons.cloud_rounded, title: 'SaaS Dashboard', onTap: () => Navigator.pushNamed(context, '/saas')),
                 _NavTile(icon: Icons.business_rounded, title: 'Tenant', onTap: () => Navigator.pushNamed(context, '/tenants')),
+                _NavTile(icon: Icons.card_membership_rounded, title: 'Paket Langganan', onTap: () => Navigator.pushNamed(context, '/plans')),
                 _NavTile(icon: Icons.storage_rounded, title: 'Koneksi Database', onTap: () => Navigator.pushNamed(context, '/db-setup')),
               ],
             ),

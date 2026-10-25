@@ -35,6 +35,7 @@ import 'screens/activity_logs_screen.dart';
 import 'screens/saas_dashboard_screen.dart';
 import 'screens/tenants_screen.dart';
 import 'screens/inventory_history_screen.dart';
+import 'screens/plans_screen.dart';
 import 'screens/payments_screen.dart';
 
 void main() async {
@@ -101,6 +102,8 @@ class PosquproApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const SaasDashboardScreen());
             case '/tenants':
               return MaterialPageRoute(builder: (_) => const TenantsScreen());
+            case '/plans':
+              return MaterialPageRoute(builder: (_) => const PlansScreen());
             case '/inventory-histories':
               return MaterialPageRoute(builder: (_) => const InventoryHistoryScreen());
             case '/payments':
