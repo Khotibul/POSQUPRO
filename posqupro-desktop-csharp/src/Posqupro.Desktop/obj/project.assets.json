@@ -301,11 +301,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "F:\\Website Js\\POSQUPRO\\POSQUPRO-Desktop-CSharp\\src\\Posqupro.Desktop\\Posqupro.Desktop.csproj",
+      "projectUniqueName": "F:\\Website Js\\POSQUPRO\\posqupro-desktop-csharp\\src\\Posqupro.Desktop\\Posqupro.Desktop.csproj",
       "projectName": "PosquproDesktop",
-      "projectPath": "F:\\Website Js\\POSQUPRO\\POSQUPRO-Desktop-CSharp\\src\\Posqupro.Desktop\\Posqupro.Desktop.csproj",
+      "projectPath": "F:\\Website Js\\POSQUPRO\\posqupro-desktop-csharp\\src\\Posqupro.Desktop\\Posqupro.Desktop.csproj",
       "packagesPath": "C:\\Users\\Risa\\.nuget\\packages\\",
-      "outputPath": "F:\\Website Js\\POSQUPRO\\POSQUPRO-Desktop-CSharp\\src\\Posqupro.Desktop\\obj\\",
+      "outputPath": "F:\\Website Js\\POSQUPRO\\posqupro-desktop-csharp\\src\\Posqupro.Desktop\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Risa\\AppData\\Roaming\\NuGet\\NuGet.Config"

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "4FgFJufBjuM=",
+  "dgSpecHash": "QJBj8eaYXfY=",
   "success": true,
-  "projectFilePath": "F:\\Website Js\\POSQUPRO\\POSQUPRO-Desktop-CSharp\\src\\Posqupro.Desktop\\Posqupro.Desktop.csproj",
+  "projectFilePath": "F:\\Website Js\\POSQUPRO\\posqupro-desktop-csharp\\src\\Posqupro.Desktop\\Posqupro.Desktop.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Risa\\.nuget\\packages\\microsoft.data.sqlite\\10.0.14\\microsoft.data.sqlite.10.0.14.nupkg.sha512",
     "C:\\Users\\Risa\\.nuget\\packages\\microsoft.data.sqlite.core\\10.0.14\\microsoft.data.sqlite.core.10.0.14.nupkg.sha512",

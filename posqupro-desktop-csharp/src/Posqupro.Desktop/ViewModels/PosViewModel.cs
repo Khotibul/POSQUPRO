@@ -308,7 +308,7 @@ public sealed class PosViewModel : ViewModelBase
         SelectedPaymentMethod = PaymentMethods.FirstOrDefault() ?? new PaymentMethod { Name = "CASH", Label = "Tunai" };
 
         var settingMap = await AppServices.Queries.GetSettingMapAsync();
-        AutoPrint = settingMap.GetValueOrDefault("printer.auto.print") == "true";
+        AutoPrint = settingMap.GetValueOrDefault("printer.auto.print", settingMap.GetValueOrDefault("receipt.autoprint.enabled", "true")) == "true";
 
         await LoadProductsAsync();
     }
@@ -565,7 +565,14 @@ public sealed class PosViewModel : ViewModelBase
 
         if (AutoPrint)
         {
-            await new ReceiptService(AppServices.Settings).PrintAsync(sale);
+            try
+            {
+                await new ReceiptService(AppServices.Settings).PrintAsync(sale, showDialog: false);
+            }
+            catch
+            {
+                // printer unavailable — receipt preview already shown
+            }
         }
 
         _shell.Navigate("pos");
