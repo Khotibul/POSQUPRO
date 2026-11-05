@@ -1,0 +1,31 @@
+<Window x:Class="Posqupro.Desktop.Views.Dialogs.PromptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Input"
+        Width="440"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource Cloud}">
+    <StackPanel Margin="20" MaxHeight="520">
+        <TextBlock x:Name="MessageText"
+                   Margin="0,0,0,14"
+                   Style="{StaticResource CardTitle}" />
+        <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="FieldsPanel" />
+        </ScrollViewer>
+        <StackPanel Margin="0,18,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button MinWidth="92"
+                    Margin="0,0,10,0"
+                    Click="OnCancel"
+                    Content="Batal"
+                    IsCancel="True"
+                    Style="{StaticResource GhostButton}" />
+            <Button MinWidth="92"
+                    Click="OnConfirm"
+                    Content="Simpan"
+                    IsDefault="True"
+                    Style="{StaticResource PrimaryButton}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

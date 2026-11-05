@@ -1,0 +1,219 @@
+<Window x:Class="Posqupro.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Posqupro.Desktop.ViewModels"
+        xmlns:views="clr-namespace:Posqupro.Desktop.Views"
+        Title="POSQUPRO Desktop" Height="840" Width="1360"
+        MinHeight="700" MinWidth="1120"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Cloud}"
+        FontFamily="{StaticResource AppFont}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+            <views:DashboardView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PosViewModel}">
+            <views:PosView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ParkedViewModel}">
+            <views:ParkedView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CrudViewModel}">
+            <views:CrudView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:InventoryViewModel}">
+            <views:InventoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TransactionsViewModel}">
+            <views:TransactionsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ReportsViewModel}">
+            <views:ReportsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PurchaseOrdersViewModel}">
+            <views:PurchaseOrdersView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:StockCountsViewModel}">
+            <views:StockCountsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RegisterViewModel}">
+            <views:RegisterView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SyncViewModel}">
+            <views:SyncView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal" Margin="18,18,18,12">
+                    <Border Background="{StaticResource Pebble}" CornerRadius="10" Padding="6">
+                        <Image Source="/Assets/logo.png" Height="30" Width="30" Stretch="Uniform" />
+                    </Border>
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="POSQUPRO" FontWeight="Bold" FontSize="15" />
+                        <TextBlock Text="DESKTOP" Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <ListBox Grid.Row="1" ItemsSource="{Binding NavView}" Style="{StaticResource NavList}"
+                         SelectedItem="{Binding SelectedNav, Mode=TwoWay}"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Caption}"
+                                               Margin="12,12,0,4" FontWeight="SemiBold" />
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ToolTip="{Binding Tooltip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="22" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Label}" Margin="8,0,0,0"
+                                           VerticalAlignment="Center" FontSize="12.5"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="{Binding Shortcut}" Style="{StaticResource Caption}"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Border Grid.Row="2" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="16,14">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="30" Height="30" CornerRadius="15" Background="{StaticResource BlueWash}">
+                                <TextBlock Text="{Binding UserName, StringFormat={}{0}}" FontWeight="Bold" FontSize="12"
+                                           Foreground="{StaticResource SignalBlue}" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding RoleLabel}" Style="{StaticResource Caption}" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{Binding TenantLabel}" Style="{StaticResource Caption}" Margin="0,10,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+                        <Button Content="Keluar" Style="{StaticResource DangerButton}" Command="{Binding LogoutCommand}"
+                                Margin="0,12,0,0" Height="32" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main area -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}"
+                    BorderThickness="0,0,0,1" Padding="24,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentPageTitle}" Style="{StaticResource PageTitle}" FontSize="20" />
+                        <TextBlock Text="{Binding LastSyncLabel}" Style="{StaticResource Caption}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border CornerRadius="999" Padding="12,5" Margin="0,0,8,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{StaticResource DangerWash}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource SuccessWash}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{StaticResource Danger}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Success}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="{Binding OnlineLabel}" FontSize="11.5" FontWeight="SemiBold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource Success}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Pill}" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding PendingLabel}" FontSize="11.5" Foreground="{StaticResource SlateGray}" />
+                        </Border>
+
+                        <Button Content="Sinkronkan" Style="{StaticResource GhostButton}" Command="{Binding SyncCommand}"
+                                Height="34" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" Margin="22" />
+
+            <Border Grid.Row="2" Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}"
+                    BorderThickness="0,1,0,0" Padding="24,8">
+                <Grid>
+                    <TextBlock Text="{Binding SyncStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding FooterVersion}" Style="{StaticResource Caption}" HorizontalAlignment="Right"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

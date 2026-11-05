@@ -1,0 +1,25 @@
+<Window x:Class="Posqupro.Desktop.Views.ReceiptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Struk"
+        Width="420"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource Cloud}">
+    <StackPanel Margin="18">
+        <TextBlock x:Name="InvoiceText" Style="{StaticResource PageTitle}" FontSize="18" />
+        <TextBlock x:Name="MetaText" Style="{StaticResource Muted}" Margin="0,4,0,12" />
+
+        <Border Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="10" Padding="14">
+            <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="ReceiptText" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Margin="0,16,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button MinWidth="100" Margin="0,0,10,0" Click="OnClose" Content="Tutup" Style="{StaticResource GhostButton}" />
+            <Button MinWidth="100" Click="OnPrint" Content="Cetak" Style="{StaticResource PrimaryButton}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,20 @@
+﻿PosquproDesktop
+
+
+winexe
+C#
+.cs
+F:\Website Js\POSQUPRO\POSQUPRO-Desktop-CSharp\src\Posqupro.Desktop\obj\Debug\net10.0-windows\
+Posqupro.Desktop
+none
+false
+TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NET9_0_OR_GREATER;NET10_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
+F:\Website Js\POSQUPRO\POSQUPRO-Desktop-CSharp\src\Posqupro.Desktop\App.xaml
+17-1713230567
+
+47-383669225
+209-452339878
+MainWindow.xaml;Styles\Theme.xaml;Views\CrudView.xaml;Views\DashboardView.xaml;Views\Dialogs\PromptWindow.xaml;Views\InventoryView.xaml;Views\LoginWindow.xaml;Views\ParkedView.xaml;Views\PosView.xaml;Views\PurchaseOrdersView.xaml;Views\ReceiptWindow.xaml;Views\RegisterView.xaml;Views\ReportsView.xaml;Views\SettingsView.xaml;Views\StockCountsView.xaml;Views\SyncView.xaml;Views\TransactionsView.xaml;
+
+False
+

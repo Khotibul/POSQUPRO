@@ -1,0 +1,146 @@
+<UserControl x:Class="Posqupro.Desktop.Views.PosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Product grid -->
+        <Border Grid.Column="0" Style="{StaticResource Card}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <TextBox DockPanel.Dock="Left" Width="260" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource SearchBox}" VerticalAlignment="Center" />
+                    <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                              Width="180" Margin="12,0,0,0" VerticalAlignment="Center" />
+                    <Button DockPanel.Dock="Right" Content="Cari / Scan" Command="{Binding AddByCodeCommand}"
+                            Style="{StaticResource GhostButton}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding BarcodeFeedback}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+
+                <ListBox ItemsSource="{Binding Products}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="168" Margin="0,0,10,10" Padding="12" CornerRadius="10"
+                                    Background="{StaticResource Pebble}" Cursor="Hand"
+                                    ToolTip="{Binding Name}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" MaxHeight="36" />
+                                    <TextBlock Text="{Binding Sku}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding StockLabel}" Style="{StaticResource Caption}" />
+                                    <TextBlock Text="{Binding EffectivePrice, StringFormat=Rp {0:N0}}"
+                                               Foreground="{StaticResource SignalBlue}" FontWeight="Bold" Margin="0,8,0,0" />
+                                    <Button Content="Tambah" Command="{Binding DataContext.AddToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" Style="{StaticResource LinkButton}" Margin="0,8,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Cart -->
+        <Border Grid.Column="2" Style="{StaticResource Card}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <Grid>
+                        <TextBlock Text="Keranjang" Style="{StaticResource CardTitle}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding CartSummary}" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <ComboBox ItemsSource="{Binding Customers}" SelectedItem="{Binding SelectedCustomer}" Margin="0,8,0,0" />
+                    <ComboBox ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding SelectedPaymentMethod}" Margin="0,8,0,0" />
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" />
+                        <ComboBox Grid.Column="2" SelectedIndex="{Binding DiscountTypeIndex}">
+                            <ComboBoxItem Content="Rp" />
+                            <ComboBoxItem Content="%" />
+                        </ComboBox>
+                    </Grid>
+                    <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0"
+                             Style="{StaticResource Input}" ToolTip="Catatan" />
+                </StackPanel>
+
+                <ListBox ItemsSource="{Binding Cart}" Margin="0,12,0,0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="8" Margin="0,0,0,6" CornerRadius="8" Background="{StaticResource Pebble}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Subtotal, StringFormat=Rp {0:N0}}" HorizontalAlignment="Right" FontSize="12" />
+                                    </Grid>
+                                    <Grid Grid.Row="1" Margin="0,6,0,0">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                            <Button Content="-" Width="26" Command="{Binding DataContext.DecreaseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <TextBlock Text="{Binding Quantity}" Width="34" TextAlignment="Center" VerticalAlignment="Center" />
+                                            <Button Content="+" Width="26" Command="{Binding DataContext.IncreaseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding StockLabel}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <Button Content="✕" Width="26" Style="{StaticResource DangerButton}"
+                                                    Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <Grid>
+                        <TextBlock Text="Subtotal" Style="{StaticResource Muted}" />
+                        <TextBlock Text="{Binding Subtotal, StringFormat=Rp {0:N0}}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Grid>
+                        <TextBlock Text="Diskon" Style="{StaticResource Muted}" />
+                        <TextBlock Text="{Binding DiscountValue, StringFormat=-Rp {0:N0}}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Grid>
+                        <TextBlock Text="Pajak" Style="{StaticResource Muted}" />
+                        <TextBlock Text="{Binding TaxAmount, StringFormat=Rp {0:N0}}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Border Style="{StaticResource Divider}" />
+                    <Grid>
+                        <TextBlock Text="Total" FontWeight="Bold" FontSize="15" />
+                        <TextBlock Text="{Binding GrandTotal, StringFormat=Rp {0:N0}}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Grid Margin="0,6,0,0">
+                        <TextBlock Text="Bayar" Style="{StaticResource Muted}" />
+                        <TextBlock Text="{Binding Change, StringFormat=Kembali Rp {0:N0}}" HorizontalAlignment="Right" Foreground="{StaticResource Success}" />
+                    </Grid>
+                    <TextBox Text="{Binding PaidText, UpdateSourceTrigger=PropertyChanged}" Margin="0,10,0,0" Style="{StaticResource Input}" />
+                    <CheckBox Content="Cetak struk otomatis" IsChecked="{Binding AutoPrint}" Style="{StaticResource Switch}" Margin="0,8,0,0" />
+                    <StackPanel Margin="0,10,0,0">
+                        <Button Content="Bayar (Checkout)" Command="{Binding CheckoutCommand}" Style="{StaticResource PrimaryButton}" Height="40" />
+                        <Button Content="Tahan Transaksi" Command="{Binding ParkCommand}" Style="{StaticResource GhostButton}" Margin="0,8,0,0" />
+                        <Button Content="Kosongkan" Command="{Binding ClearCartCommand}" Style="{StaticResource DangerButton}" Margin="0,8,0,0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Caption}" Margin="0,10,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
