@@ -136,6 +136,9 @@ public sealed class PosViewModel : ViewModelBase
     private decimal _change;
     private string _barcodeFeedback = "";
     private bool _autoPrint = true;
+    private bool _canEditPrice = true;
+    private bool _canPark = true;
+    private int _parkedCount;
 
     public PosViewModel(ShellViewModel shell)
     {
@@ -159,7 +162,7 @@ public sealed class PosViewModel : ViewModelBase
         DecreaseCommand = new RelayCommand<CartLine>(line => ChangeQuantity(line, -1));
         RemoveCommand = new RelayCommand<CartLine>(RemoveLine);
         ClearCartCommand = new RelayCommand(ClearCart);
-        ParkCommand = new AsyncRelayCommand(ParkAsync);
+        ParkCommand = new AsyncRelayCommand(ParkAsync, () => CanPark);
         CheckoutCommand = new AsyncRelayCommand(CheckoutAsync);
         RefreshCommand = new AsyncRelayCommand(LoadAsync);
         SelectCategoryCommand = new AsyncRelayCommand(() => LoadProductsAsync());
@@ -168,6 +171,7 @@ public sealed class PosViewModel : ViewModelBase
         FocusSearchCommand = new RelayCommand(() => RequestFocus?.Invoke(PosFocus.Search));
         FocusBarcodeCommand = new RelayCommand(() => RequestFocus?.Invoke(PosFocus.Barcode));
         FocusPaidCommand = new RelayCommand(() => RequestFocus?.Invoke(PosFocus.Paid));
+        OpenParkedCommand = new RelayCommand(() => _shell.Navigate("parked"));
 
         Cart.CollectionChanged += (_, _) => Recalculate();
         _ = LoadAsync();
@@ -204,6 +208,7 @@ public sealed class PosViewModel : ViewModelBase
     public ICommand FocusSearchCommand { get; }
     public ICommand FocusBarcodeCommand { get; }
     public ICommand FocusPaidCommand { get; }
+    public ICommand OpenParkedCommand { get; }
 
     public sealed record QuickCashOption(string Label, decimal Amount);
 
@@ -362,7 +367,62 @@ public sealed class PosViewModel : ViewModelBase
 
     public int ItemCount => Cart.Sum(line => (int)line.Quantity);
     public bool HasCart => Cart.Count > 0;
-    public string CartSummary => HasCart ? $"{ItemCount} item" : "Kosong";
+    public string CartSummary => HasCart ? $"{ItemCount} item · Rp {GrandTotal:N0}" : "Keranjang kosong";
+
+    public bool CanEditPrice
+    {
+        get => _canEditPrice;
+        private set
+        {
+            if (SetProperty(ref _canEditPrice, value))
+            {
+                OnPropertyChanged(nameof(PriceEditHint));
+            }
+        }
+    }
+
+    public bool CanPark
+    {
+        get => _canPark;
+        private set
+        {
+            if (SetProperty(ref _canPark, value))
+            {
+                (ParkCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public int ParkedCount
+    {
+        get => _parkedCount;
+        private set
+        {
+            if (SetProperty(ref _parkedCount, value))
+            {
+                OnPropertyChanged(nameof(ParkedLabel));
+            }
+        }
+    }
+
+    public string ParkedLabel => ParkedCount > 0 ? $"Simpanan ({ParkedCount})" : "Simpanan";
+
+    public string PriceEditHint => CanEditPrice
+        ? "Harga bisa diedit"
+        : "Harga terkunci · atur di Pengaturan → Kasir";
+
+    public async Task RefreshParkedAsync()
+    {
+        try
+        {
+            var items = await AppServices.Queries.GetParkedAsync();
+            ParkedCount = items.Count;
+        }
+        catch
+        {
+            ParkedCount = 0;
+        }
+    }
 
     public void LoadLines(IEnumerable<SaleLineInput> lines)
     {
@@ -429,7 +489,19 @@ public sealed class PosViewModel : ViewModelBase
         var settingMap = await AppServices.Queries.GetSettingMapAsync();
         AutoPrint = settingMap.GetValueOrDefault("printer.auto.print", settingMap.GetValueOrDefault("receipt.autoprint.enabled", "true")) == "true";
 
+        var priceMode = settingMap.GetValueOrDefault("pos.edit.price.mode", "admin");
+        var role = (AppServices.Settings.Value.UserRole ?? "").ToUpperInvariant();
+        var isAdmin = role is "ADMIN" or "OWNER" or "SUPER ADMIN" or "SUPERADMIN";
+        CanEditPrice = priceMode switch
+        {
+            "none" => false,
+            "all" => true,
+            _ => isAdmin,
+        };
+        CanPark = settingMap.GetValueOrDefault("pos.park.enabled", "true") == "true";
+
         await LoadProductsAsync();
+        await RefreshParkedAsync();
     }
 
     private async Task DebouncedSearchAsync()
@@ -784,7 +856,30 @@ public sealed class PosViewModel : ViewModelBase
             return;
         }
 
-        var result = await AppServices.Sales.ParkAsync(BuildRequest());
+        if (!CanPark)
+        {
+            Ui.Error("Fitur simpan keranjang dinonaktifkan di Pengaturan.");
+            return;
+        }
+
+        var fields = Views.Dialogs.PromptWindow.Ask(
+            System.Windows.Application.Current.MainWindow,
+            "Simpan Keranjang",
+            "Simpan isi keranjang — bisa dilanjutkan kapan saja dari menu Transaksi Tertunda.",
+            new Views.Dialogs.PromptField("label", "Nama simpanan", $"Keranjang {DateTime.Now:dd/MM HH:mm}"));
+
+        if (fields is null)
+        {
+            return;
+        }
+
+        var label = fields.GetValueOrDefault("label", "")?.Trim();
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            label = $"Keranjang {DateTime.Now:yyyyMMddHHmmss}";
+        }
+
+        var result = await AppServices.Sales.ParkAsync(BuildRequest(), label);
         if (!result.Success)
         {
             Ui.Error(result.Message);
@@ -794,6 +889,7 @@ public sealed class PosViewModel : ViewModelBase
         StatusMessage = result.Message;
         ClearCartSilently();
         await AppServices.Sync.RefreshCountersAsync();
+        await RefreshParkedAsync();
         RequestFocus?.Invoke(PosFocus.Barcode);
     }
 
@@ -836,6 +932,7 @@ public sealed class PosViewModel : ViewModelBase
             ClearCartSilently();
             await LoadProductsAsync();
             await AppServices.Sync.RefreshCountersAsync();
+            await RefreshParkedAsync();
 
             var receipt = await new ReceiptService(AppServices.Settings).BuildTextAsync(sale);
             var window = new ReceiptWindow(sale, receipt) { Owner = System.Windows.Application.Current.MainWindow };

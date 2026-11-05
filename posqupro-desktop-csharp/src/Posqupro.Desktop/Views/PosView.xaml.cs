@@ -14,7 +14,14 @@ public partial class PosView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
-        Loaded += (_, _) => FocusBarcode();
+        Loaded += async (_, _) =>
+        {
+            FocusBarcode();
+            if (_vm is not null)
+            {
+                await _vm.RefreshParkedAsync();
+            }
+        };
         PreviewKeyDown += OnPreviewKeyDown;
     }
 

@@ -163,6 +163,33 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,14">
                 <StackPanel>
+                    <TextBlock Text="Kasir / POS" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
+                    <TextBlock Text="Atur siapa yang boleh mengubah harga item di keranjang saat transaksi."
+                               Style="{StaticResource Caption}" Margin="0,0,0,12" TextWrapping="Wrap" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Edit Harga di Keranjang" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding PosEditPriceLabels}" SelectedIndex="{Binding PosEditPriceIndex}"
+                                      Margin="0,0,0,10" />
+                            <TextBlock Text="0 = terkunci · 1 = hanya Admin/Super Admin · 2 = semua role"
+                                       Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Simpan Keranjang" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                            <CheckBox Content="Izinkan simpan / tahan keranjang" IsChecked="{Binding PosParkEnabled}"
+                                      Style="{StaticResource Switch}" Margin="0,0,0,10" />
+                            <Button Content="Simpan Pengaturan Kasir" Command="{Binding SavePosCommand}"
+                                    Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
                     <TextBlock Text="Metode Pembayaran" Style="{StaticResource CardTitle}" Margin="0,0,0,10" />
                     <ItemsControl ItemsSource="{Binding PaymentMethods}">
                         <ItemsControl.ItemTemplate>

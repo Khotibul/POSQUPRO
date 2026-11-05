@@ -400,6 +400,8 @@ public sealed class LocalQueries(LocalDatabase database)
             ["drawer.enabled"] = ("false", "printer", "Aktifkan Laci Kas"),
             ["drawer.printer"] = ("", "printer", "Printer Laci Kas"),
             ["receipt.logo.path"] = ("", "store", "Logo Struk"),
+            ["pos.edit.price.mode"] = ("admin", "pos", "Edit Harga di Keranjang"),
+            ["pos.park.enabled"] = ("true", "pos", "Izinkan Simpan Keranjang"),
         };
 
         var existing = await database.GetSettingMapAsync();

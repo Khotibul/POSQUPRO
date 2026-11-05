@@ -61,6 +61,8 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _drawerEnabled;
     private string _receiptLogoPath = "";
     private string _selectedPrinter = "";
+    private int _posEditPriceIndex = 1;
+    private bool _posParkEnabled = true;
 
     public SettingsViewModel(ShellViewModel shell)
     {
@@ -69,6 +71,7 @@ public sealed class SettingsViewModel : ViewModelBase
         PrinterOptions = [];
         SaveStoreCommand = new AsyncRelayCommand(SaveStoreAsync);
         SavePrinterCommand = new AsyncRelayCommand(SavePrinterAsync);
+        SavePosCommand = new AsyncRelayCommand(SavePosAsync);
         DetectPrintersCommand = new AsyncRelayCommand(DetectPrintersAsync);
         TestPrintCommand = new AsyncRelayCommand(TestPrintAsync);
         ClearLogoCommand = new RelayCommand(() => ReceiptLogoPath = "");
@@ -81,6 +84,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public ObservableCollection<string> PrinterOptions { get; }
     public ICommand SaveStoreCommand { get; }
     public ICommand SavePrinterCommand { get; }
+    public ICommand SavePosCommand { get; }
     public ICommand DetectPrintersCommand { get; }
     public ICommand TestPrintCommand { get; }
     public ICommand ClearLogoCommand { get; }
@@ -94,6 +98,20 @@ public sealed class SettingsViewModel : ViewModelBase
         ["", "Lucida Console", "Courier New", "Consolas", "Arial", "Tahoma", "Segoe UI", "Verdana", "Times New Roman", "Calibri"];
     public IReadOnlyList<string> AlignmentOptions { get; } = ["left", "center", "right"];
     public IReadOnlyList<string> PaperWidthOptions { get; } = ["32", "42", "48", "58", "72", "80"];
+    public IReadOnlyList<string> PosEditPriceLabels { get; } =
+        ["Tidak diizinkan", "Hanya Admin", "Semua role"];
+
+    public int PosEditPriceIndex
+    {
+        get => _posEditPriceIndex;
+        set => SetProperty(ref _posEditPriceIndex, value);
+    }
+
+    public bool PosParkEnabled
+    {
+        get => _posParkEnabled;
+        set => SetProperty(ref _posParkEnabled, value);
+    }
 
     public string TenantName => AppServices.Settings.Value.TenantName ?? "POSQUPRO";
     public string PlanName => AppServices.Settings.Value.PlanName ?? "—";
@@ -164,6 +182,15 @@ public sealed class SettingsViewModel : ViewModelBase
         ReceiptLogoPath = map.GetValueOrDefault("receipt.logo.path", "");
         AutoPrint = map.GetValueOrDefault("printer.auto.print", map.GetValueOrDefault("receipt.autoprint.enabled", "true")) == "true";
         DrawerEnabled = map.GetValueOrDefault("drawer.enabled", "false") == "true";
+
+        var priceMode = map.GetValueOrDefault("pos.edit.price.mode", "admin");
+        PosEditPriceIndex = priceMode switch
+        {
+            "none" => 0,
+            "all" => 2,
+            _ => 1,
+        };
+        PosParkEnabled = map.GetValueOrDefault("pos.park.enabled", "true") == "true";
 
         SelectedPrinter = string.IsNullOrWhiteSpace(PrinterName) ? "Deteksi otomatis..." : PrinterName;
         OnPropertyChanged(nameof(IsBluetooth));
@@ -285,6 +312,22 @@ public sealed class SettingsViewModel : ViewModelBase
         PrinterName = SelectedPrinter == "Deteksi otomatis..." ? "" : PrinterName;
         OnPropertyChanged(nameof(IsBluetooth));
         OnPropertyChanged(nameof(FontSizeLabel));
+    }
+
+    private async Task SavePosAsync()
+    {
+        var mode = PosEditPriceIndex switch
+        {
+            0 => "none",
+            2 => "all",
+            _ => "admin",
+        };
+
+        await SaveSettingsAsync(new Dictionary<string, string>
+        {
+            ["pos.edit.price.mode"] = mode,
+            ["pos.park.enabled"] = PosParkEnabled ? "true" : "false",
+        }, "pos");
     }
 
     private async Task SaveSettingsAsync(Dictionary<string, string> values, string group)

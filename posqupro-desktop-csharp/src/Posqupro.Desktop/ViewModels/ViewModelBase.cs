@@ -98,6 +98,8 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
 
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
 
+    public void RaiseCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
+
     public async void Execute(object? parameter)
     {
         _running = true;

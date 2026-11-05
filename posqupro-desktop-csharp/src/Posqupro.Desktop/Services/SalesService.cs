@@ -183,7 +183,7 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
         });
     }
 
-    public async Task<(bool Success, string Message)> ParkAsync(SaleRequest request)
+    public async Task<(bool Success, string Message)> ParkAsync(SaleRequest request, string? label = null)
     {
         if (request.Lines.Count == 0)
         {
@@ -203,9 +203,13 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
             subtotal = line.Quantity * line.UnitPrice - line.Discount,
         }).ToList();
 
+        var invoice = string.IsNullOrWhiteSpace(label)
+            ? $"PARK-{DateTime.Now:yyyyMMddHHmmss}"
+            : label.Trim();
+
         var id = await database.InsertAsync("parked_transactions", new Dictionary<string, object?>
         {
-            ["invoice_number"] = $"PARK-{DateTime.Now:yyyyMMddHHmmss}",
+            ["invoice_number"] = invoice,
             ["customer_id"] = request.CustomerId,
             ["items_json"] = JsonSerializer.Serialize(items, JsonOptions),
             ["subtotal"] = subtotal,
@@ -220,6 +224,7 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
         await database.EnqueueAsync("parked_transaction", "create", id, new
         {
             customer_id = request.CustomerId,
+            invoice_number = invoice,
             items = request.Lines.Select(line => new
             {
                 product_id = line.ProductId,
@@ -232,7 +237,7 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
             notes = request.Notes,
         });
 
-        return (true, "Transaksi diparkir.");
+        return (true, $"Keranjang disimpan sebagai \"{invoice}\".");
     }
 
     public async Task<List<SaleLineInput>> RestoreParkedAsync(long parkedId)

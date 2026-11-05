@@ -65,6 +65,7 @@ public sealed class ParkedViewModel : ViewModelBase
         var pos = _shell.EnsurePos();
         pos.LoadLines(lines);
         await LoadAsync();
+        await pos.RefreshParkedAsync();
         _shell.Navigate("pos");
         pos.StatusMessage = "Transaksi tertunda dipulihkan ke keranjang.";
     }
@@ -80,5 +81,6 @@ public sealed class ParkedViewModel : ViewModelBase
         Selected = null;
         await LoadAsync();
         await AppServices.Sync.RefreshCountersAsync();
+        await _shell.EnsurePos().RefreshParkedAsync();
     }
 }
