@@ -11,32 +11,88 @@ public sealed class CartLine : ViewModelBase
 {
     private decimal _quantity;
     private decimal _discount;
+    private decimal _unitPrice;
+    private string _quantityText;
+    private string _priceText;
 
     public CartLine(Product product, decimal quantity = 1, decimal unitPrice = 0, decimal discount = 0)
     {
         Product = product;
         _quantity = quantity;
-        UnitPrice = unitPrice > 0 ? unitPrice : product.EffectivePrice;
+        _unitPrice = unitPrice > 0 ? unitPrice : product.EffectivePrice;
         _discount = discount;
+        _quantityText = quantity.ToString("0.##");
+        _priceText = ((int)_unitPrice).ToString();
     }
 
     public Product Product { get; }
     public long ProductId => Product.Id;
     public string Name => Product.Name;
     public string? Sku => Product.Sku;
-    public decimal UnitPrice { get; }
     public decimal MaxQuantity => Product.Stock;
     public string StockLabel => Product.Type == "service" ? "Jasa" : $"Stok {Product.Stock:0.##}";
     public decimal TaxRate => Product.TaxRate;
+
+    public decimal UnitPrice
+    {
+        get => _unitPrice;
+        set
+        {
+            if (SetProperty(ref _unitPrice, Math.Max(0, value)))
+            {
+                _priceText = ((int)_unitPrice).ToString();
+                OnPropertyChanged(nameof(PriceText));
+                OnPropertyChanged(nameof(Subtotal));
+            }
+        }
+    }
+
+    public string PriceText
+    {
+        get => _priceText;
+        set
+        {
+            if (SetProperty(ref _priceText, value))
+            {
+                if (decimal.TryParse(value, out var parsed))
+                {
+                    UnitPrice = parsed;
+                }
+            }
+        }
+    }
 
     public decimal Quantity
     {
         get => _quantity;
         set
         {
-            if (SetProperty(ref _quantity, value))
+            var next = Math.Max(0, value);
+            if (Product.Type != "service" && next > Product.Stock)
             {
+                next = Product.Stock;
+            }
+
+            if (SetProperty(ref _quantity, next))
+            {
+                _quantityText = next.ToString("0.##");
+                OnPropertyChanged(nameof(QuantityText));
                 OnPropertyChanged(nameof(Subtotal));
+            }
+        }
+    }
+
+    public string QuantityText
+    {
+        get => _quantityText;
+        set
+        {
+            if (SetProperty(ref _quantityText, value))
+            {
+                if (decimal.TryParse(value, out var parsed))
+                {
+                    Quantity = parsed;
+                }
             }
         }
     }
@@ -46,7 +102,7 @@ public sealed class CartLine : ViewModelBase
         get => _discount;
         set
         {
-            if (SetProperty(ref _discount, value))
+            if (SetProperty(ref _discount, Math.Max(0, value)))
             {
                 OnPropertyChanged(nameof(Subtotal));
             }
@@ -60,10 +116,12 @@ public sealed class PosViewModel : ViewModelBase
 {
     private readonly ShellViewModel _shell;
     private readonly Dictionary<string, Product> _productsById = [];
+    private CancellationTokenSource? _searchCts;
     private bool _paidTouched;
     private bool _recalculating;
 
     private string _searchText = "";
+    private string _barcodeText = "";
     private Category? _selectedCategory;
     private Customer? _selectedCustomer;
     private PaymentMethod? _selectedPaymentMethod;
@@ -96,6 +154,7 @@ public sealed class PosViewModel : ViewModelBase
             }
         });
         AddByCodeCommand = new AsyncRelayCommand(AddByCodeAsync);
+        SearchEnterCommand = new AsyncRelayCommand(SearchEnterAsync);
         IncreaseCommand = new RelayCommand<CartLine>(line => ChangeQuantity(line, 1));
         DecreaseCommand = new RelayCommand<CartLine>(line => ChangeQuantity(line, -1));
         RemoveCommand = new RelayCommand<CartLine>(RemoveLine);
@@ -104,10 +163,24 @@ public sealed class PosViewModel : ViewModelBase
         CheckoutCommand = new AsyncRelayCommand(CheckoutAsync);
         RefreshCommand = new AsyncRelayCommand(LoadAsync);
         SelectCategoryCommand = new AsyncRelayCommand(() => LoadProductsAsync());
+        QuickCashCommand = new RelayCommand<object?>(QuickCash);
+        ExactCashCommand = new RelayCommand(() => SetPaid(GrandTotal));
+        FocusSearchCommand = new RelayCommand(() => RequestFocus?.Invoke(PosFocus.Search));
+        FocusBarcodeCommand = new RelayCommand(() => RequestFocus?.Invoke(PosFocus.Barcode));
+        FocusPaidCommand = new RelayCommand(() => RequestFocus?.Invoke(PosFocus.Paid));
 
         Cart.CollectionChanged += (_, _) => Recalculate();
         _ = LoadAsync();
     }
+
+    public enum PosFocus
+    {
+        Search,
+        Barcode,
+        Paid,
+    }
+
+    public event Action<PosFocus>? RequestFocus;
 
     public ObservableCollection<Product> Products { get; }
     public ObservableCollection<CartLine> Cart { get; }
@@ -117,6 +190,7 @@ public sealed class PosViewModel : ViewModelBase
 
     public ICommand AddToCartCommand { get; }
     public ICommand AddByCodeCommand { get; }
+    public ICommand SearchEnterCommand { get; }
     public ICommand IncreaseCommand { get; }
     public ICommand DecreaseCommand { get; }
     public ICommand RemoveCommand { get; }
@@ -125,6 +199,24 @@ public sealed class PosViewModel : ViewModelBase
     public ICommand CheckoutCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand SelectCategoryCommand { get; }
+    public ICommand QuickCashCommand { get; }
+    public ICommand ExactCashCommand { get; }
+    public ICommand FocusSearchCommand { get; }
+    public ICommand FocusBarcodeCommand { get; }
+    public ICommand FocusPaidCommand { get; }
+
+    public sealed record QuickCashOption(string Label, decimal Amount);
+
+    public IReadOnlyList<QuickCashOption> QuickCashOptions { get; } =
+    [
+        new("Uang Pas", -1),
+        new("Rp10.000", 10_000),
+        new("Rp20.000", 20_000),
+        new("Rp50.000", 50_000),
+        new("Rp100.000", 100_000),
+        new("Rp200.000", 200_000),
+        new("Rp500.000", 500_000),
+    ];
 
     public string SearchText
     {
@@ -133,9 +225,15 @@ public sealed class PosViewModel : ViewModelBase
         {
             if (SetProperty(ref _searchText, value))
             {
-                _ = LoadProductsAsync();
+                _ = DebouncedSearchAsync();
             }
         }
+    }
+
+    public string BarcodeText
+    {
+        get => _barcodeText;
+        set => SetProperty(ref _barcodeText, value);
     }
 
     public Category? SelectedCategory
@@ -159,7 +257,13 @@ public sealed class PosViewModel : ViewModelBase
     public PaymentMethod? SelectedPaymentMethod
     {
         get => _selectedPaymentMethod;
-        set => SetProperty(ref _selectedPaymentMethod, value);
+        set
+        {
+            if (SetProperty(ref _selectedPaymentMethod, value))
+            {
+                Recalculate();
+            }
+        }
     }
 
     public bool AutoPrint
@@ -247,9 +351,18 @@ public sealed class PosViewModel : ViewModelBase
         private set => SetProperty(ref _change, value);
     }
 
+    public bool IsCreditSale =>
+        SelectedPaymentMethod is not null &&
+        (SelectedPaymentMethod.Name.Contains("CREDIT", StringComparison.OrdinalIgnoreCase) ||
+         SelectedPaymentMethod.Name.Contains("UTANG", StringComparison.OrdinalIgnoreCase) ||
+         SelectedPaymentMethod.Name.Contains("PIUTANG", StringComparison.OrdinalIgnoreCase) ||
+         (SelectedPaymentMethod.Label?.Contains("kredit", StringComparison.OrdinalIgnoreCase) ?? false) ||
+         (SelectedPaymentMethod.Label?.Contains("utang", StringComparison.OrdinalIgnoreCase) ?? false) ||
+         (SelectedPaymentMethod.Label?.Contains("piutang", StringComparison.OrdinalIgnoreCase) ?? false));
+
     public int ItemCount => Cart.Sum(line => (int)line.Quantity);
     public bool HasCart => Cart.Count > 0;
-    public string CartSummary => $"{ItemCount} item";
+    public string CartSummary => HasCart ? $"{ItemCount} item" : "Kosong";
 
     public void LoadLines(IEnumerable<SaleLineInput> lines)
     {
@@ -276,6 +389,7 @@ public sealed class PosViewModel : ViewModelBase
 
         AttachCartHandlers();
         Recalculate();
+        RequestFocus?.Invoke(PosFocus.Barcode);
     }
 
     private async Task LoadAsync()
@@ -302,6 +416,11 @@ public sealed class PosViewModel : ViewModelBase
         var methods = await AppServices.Queries.GetPaymentMethodsAsync();
         foreach (var method in methods.Where(item => item.Active))
         {
+            if (string.IsNullOrWhiteSpace(method.Label))
+            {
+                method.Label = method.Name;
+            }
+
             PaymentMethods.Add(method);
         }
 
@@ -311,6 +430,22 @@ public sealed class PosViewModel : ViewModelBase
         AutoPrint = settingMap.GetValueOrDefault("printer.auto.print", settingMap.GetValueOrDefault("receipt.autoprint.enabled", "true")) == "true";
 
         await LoadProductsAsync();
+    }
+
+    private async Task DebouncedSearchAsync()
+    {
+        _searchCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _searchCts = cts;
+        try
+        {
+            await Task.Delay(250, cts.Token);
+            await LoadProductsAsync();
+        }
+        catch (TaskCanceledException)
+        {
+            // newer keystroke superseded this search
+        }
     }
 
     private async Task LoadProductsAsync()
@@ -328,9 +463,54 @@ public sealed class PosViewModel : ViewModelBase
         }
     }
 
-    private async Task AddByCodeAsync()
+    private async Task SearchEnterAsync()
     {
         var code = SearchText.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            await LoadProductsAsync();
+            return;
+        }
+
+        var exact = Products.FirstOrDefault(candidate =>
+                        string.Equals(candidate.Barcode, code, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(candidate.Sku, code, StringComparison.OrdinalIgnoreCase))
+                    ?? await AppServices.Queries.FindProductByCodeAsync(code);
+
+        if (exact is not null &&
+            (string.Equals(exact.Barcode, code, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(exact.Sku, code, StringComparison.OrdinalIgnoreCase)))
+        {
+            AddProduct(exact);
+            SearchText = "";
+            BarcodeFeedback = "";
+            RequestFocus?.Invoke(PosFocus.Barcode);
+            return;
+        }
+
+        if (Products.Count == 1)
+        {
+            AddProduct(Products[0]);
+            SearchText = "";
+            BarcodeFeedback = "";
+            RequestFocus?.Invoke(PosFocus.Barcode);
+            return;
+        }
+
+        await LoadProductsAsync();
+        if (Products.Count == 0)
+        {
+            BarcodeFeedback = $"Tidak ada produk untuk \"{code}\".";
+        }
+        else
+        {
+            BarcodeFeedback = "";
+        }
+    }
+
+    private async Task AddByCodeAsync()
+    {
+        var code = (string.IsNullOrWhiteSpace(BarcodeText) ? SearchText : BarcodeText).Trim();
         if (string.IsNullOrWhiteSpace(code))
         {
             return;
@@ -344,16 +524,30 @@ public sealed class PosViewModel : ViewModelBase
         if (product is null)
         {
             BarcodeFeedback = $"Produk dengan kode \"{code}\" tidak ditemukan.";
+            BarcodeText = "";
+            RequestFocus?.Invoke(PosFocus.Barcode);
             return;
         }
 
         AddProduct(product);
-        SearchText = "";
-        BarcodeFeedback = "";
+        BarcodeText = "";
+        if (SearchText == code)
+        {
+            SearchText = "";
+        }
+
+        BarcodeFeedback = $"{product.Name} ditambahkan.";
+        RequestFocus?.Invoke(PosFocus.Barcode);
     }
 
     private void AddProduct(Product product)
     {
+        if (!product.IsActive)
+        {
+            Ui.Error("Produk tidak aktif.");
+            return;
+        }
+
         if (product.Type != "service" && product.Stock <= 0)
         {
             Ui.Error("Stok produk ini habis.");
@@ -393,8 +587,14 @@ public sealed class PosViewModel : ViewModelBase
 
     private void LineOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(CartLine.Subtotal))
+        if (e.PropertyName is nameof(CartLine.Subtotal) or nameof(CartLine.Quantity) or nameof(CartLine.UnitPrice))
         {
+            if (sender is CartLine line && line.Quantity <= 0 && Cart.Contains(line))
+            {
+                RemoveLine(line);
+                return;
+            }
+
             Recalculate();
         }
     }
@@ -437,145 +637,17 @@ public sealed class PosViewModel : ViewModelBase
 
     private void ClearCart()
     {
-        if (Cart.Count == 0 || !Ui.Confirm("Kosongkan keranjang?"))
-        {
-            return;
-        }
-
-        foreach (var line in Cart)
-        {
-            line.PropertyChanged -= LineOnPropertyChanged;
-        }
-
-        Cart.Clear();
-        SelectedCustomer = Customers.FirstOrDefault();
-        DiscountText = "0";
-        Notes = "";
-        _paidTouched = false;
-        Recalculate();
-    }
-
-    private void Recalculate()
-    {
-        if (_recalculating)
-        {
-            return;
-        }
-
-        _recalculating = true;
-        try
-        {
-            Subtotal = Cart.Sum(line => line.Subtotal);
-
-            var discountInput = decimal.TryParse(DiscountText, out var parsed) ? parsed : 0;
-            DiscountValue = DiscountTypeIndex == 1
-                ? Math.Round(Subtotal * Math.Clamp(discountInput, 0, 100) / 100, 2)
-                : Math.Clamp(discountInput, 0, Subtotal);
-
-            var weightedTax = Cart.Sum(line => line.Subtotal * line.TaxRate / 100);
-            var taxableShare = Subtotal > 0 ? (Subtotal - DiscountValue) / Subtotal : 0;
-            TaxAmount = Math.Round(weightedTax * taxableShare, 2);
-
-            GrandTotal = Math.Max(0, Subtotal - DiscountValue + TaxAmount);
-
-            if (!_paidTouched || PaidText is "0" or "")
-            {
-                _paidText = GrandTotal.ToString("0.##");
-                OnPropertyChanged(nameof(PaidText));
-                _paidTouched = false;
-            }
-
-            var paid = decimal.TryParse(PaidText, out var paidParsed) ? paidParsed : 0;
-            Change = Math.Max(0, paid - GrandTotal);
-
-            OnPropertyChanged(nameof(ItemCount));
-            OnPropertyChanged(nameof(HasCart));
-            OnPropertyChanged(nameof(CartSummary));
-        }
-        finally
-        {
-            _recalculating = false;
-        }
-    }
-
-    private SaleRequest BuildRequest() => new()
-    {
-        Lines = Cart.Select(line => new SaleLineInput
-        {
-            ProductId = line.ProductId,
-            ProductName = line.Name,
-            Sku = line.Sku,
-            Quantity = line.Quantity,
-            UnitPrice = line.UnitPrice,
-            Discount = line.Discount,
-        }).ToList(),
-        CustomerId = SelectedCustomer?.Id > 0 ? SelectedCustomer.Id : null,
-        Discount = DiscountValue,
-        TaxAmount = TaxAmount,
-        PaidAmount = decimal.TryParse(PaidText, out var paid) ? paid : GrandTotal,
-        PaymentMethod = (SelectedPaymentMethod?.Name ?? "CASH").ToLowerInvariant(),
-        Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim(),
-    };
-
-    private async Task ParkAsync()
-    {
-        var result = await AppServices.Sales.ParkAsync(BuildRequest());
-        if (!result.Success)
-        {
-            Ui.Error(result.Message);
-            return;
-        }
-
-        StatusMessage = result.Message;
-        ClearCartSilently();
-        await AppServices.Sync.RefreshCountersAsync();
-    }
-
-    private async Task CheckoutAsync()
-    {
         if (Cart.Count == 0)
         {
-            Ui.Error("Keranjang masih kosong.");
             return;
         }
 
-        var paid = decimal.TryParse(PaidText, out var parsedPaid) ? parsedPaid : 0;
-        if (paid < GrandTotal)
+        if (!Ui.Confirm("Kosongkan keranjang?"))
         {
-            Ui.Error("Jumlah bayar kurang dari total.");
             return;
         }
 
-        var result = await AppServices.Sales.CheckoutAsync(BuildRequest());
-        if (!result.Success || result.Result is null)
-        {
-            Ui.Error(result.Message);
-            return;
-        }
-
-        var sale = result.Result;
-        StatusMessage = $"Transaksi {sale.InvoiceNumber} tersimpan.";
         ClearCartSilently();
-        await LoadProductsAsync();
-        await AppServices.Sync.RefreshCountersAsync();
-
-        var receipt = await new ReceiptService(AppServices.Settings).BuildTextAsync(sale);
-        var window = new ReceiptWindow(sale, receipt) { Owner = System.Windows.Application.Current.MainWindow };
-        window.ShowDialog();
-
-        if (AutoPrint)
-        {
-            try
-            {
-                await new ReceiptService(AppServices.Settings).PrintAsync(sale, showDialog: false);
-            }
-            catch
-            {
-                // printer unavailable — receipt preview already shown
-            }
-        }
-
-        _shell.Navigate("pos");
     }
 
     private void ClearCartSilently()
@@ -588,8 +660,204 @@ public sealed class PosViewModel : ViewModelBase
         Cart.Clear();
         SelectedCustomer = Customers.FirstOrDefault();
         DiscountText = "0";
+        DiscountTypeIndex = 0;
         Notes = "";
         _paidTouched = false;
+        _paidText = "0";
+        OnPropertyChanged(nameof(PaidText));
+        BarcodeFeedback = "";
         Recalculate();
+    }
+
+    private void QuickCash(object? parameter)
+    {
+        switch (parameter)
+        {
+            case null:
+                SetPaid(GrandTotal);
+                return;
+            case QuickCashOption option:
+                SetPaid(option.Amount < 0 ? GrandTotal : option.Amount);
+                return;
+            case string text when text == "-1":
+                SetPaid(GrandTotal);
+                return;
+            case string text when decimal.TryParse(text, out var amount):
+                SetPaid(amount);
+                return;
+            case decimal amountDecimal:
+                SetPaid(amountDecimal < 0 ? GrandTotal : amountDecimal);
+                return;
+        }
+    }
+
+    private void SetPaid(decimal amount)
+    {
+        _paidTouched = true;
+        PaidText = Math.Max(0, amount).ToString("0.##");
+        RequestFocus?.Invoke(PosFocus.Paid);
+    }
+
+    private void Recalculate()
+    {
+        if (_recalculating)
+        {
+            return;
+        }
+
+        _recalculating = true;
+        try
+        {
+            Subtotal = Math.Round(Cart.Sum(line => line.Subtotal), 2);
+
+            var discountInput = decimal.TryParse(DiscountText, out var parsed) ? parsed : 0;
+            DiscountValue = DiscountTypeIndex == 1
+                ? Math.Round(Subtotal * Math.Clamp(discountInput, 0, 100) / 100, 2)
+                : Math.Round(Math.Clamp(discountInput, 0, Subtotal), 2);
+
+            var weightedTax = Cart.Sum(line => line.Subtotal * line.TaxRate / 100);
+            var taxableShare = Subtotal > 0 ? (Subtotal - DiscountValue) / Subtotal : 0;
+            TaxAmount = Math.Round(weightedTax * taxableShare, 2);
+
+            GrandTotal = Math.Max(0, Math.Round(Subtotal - DiscountValue + TaxAmount, 2));
+
+            if (!_paidTouched || PaidText is "0" or "")
+            {
+                _paidText = GrandTotal.ToString("0.##");
+                OnPropertyChanged(nameof(PaidText));
+                _paidTouched = false;
+            }
+
+            var paid = decimal.TryParse(PaidText, out var paidParsed) ? paidParsed : 0;
+            Change = Math.Max(0, Math.Round(paid - GrandTotal, 2));
+
+            OnPropertyChanged(nameof(ItemCount));
+            OnPropertyChanged(nameof(HasCart));
+            OnPropertyChanged(nameof(CartSummary));
+            OnPropertyChanged(nameof(IsCreditSale));
+        }
+        finally
+        {
+            _recalculating = false;
+        }
+    }
+
+    private SaleRequest BuildRequest()
+    {
+        var method = SelectedPaymentMethod?.Name ?? "CASH";
+        var paid = decimal.TryParse(PaidText, out var paidParsed) ? paidParsed : GrandTotal;
+        if (!IsCreditSale && paid < GrandTotal)
+        {
+            paid = GrandTotal;
+        }
+
+        if (IsCreditSale && paid <= 0)
+        {
+            paid = 0;
+        }
+
+        return new SaleRequest
+        {
+            Lines = Cart.Select(line => new SaleLineInput
+            {
+                ProductId = line.ProductId,
+                ProductName = line.Name,
+                Sku = line.Sku,
+                Quantity = line.Quantity,
+                UnitPrice = line.UnitPrice,
+                Discount = line.Discount,
+            }).ToList(),
+            CustomerId = SelectedCustomer?.Id > 0 ? SelectedCustomer.Id : null,
+            Discount = DiscountValue,
+            TaxAmount = TaxAmount,
+            PaidAmount = paid,
+            PaymentMethod = method.ToLowerInvariant(),
+            Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim(),
+        };
+    }
+
+    private async Task ParkAsync()
+    {
+        if (Cart.Count == 0)
+        {
+            Ui.Error("Keranjang masih kosong.");
+            return;
+        }
+
+        var result = await AppServices.Sales.ParkAsync(BuildRequest());
+        if (!result.Success)
+        {
+            Ui.Error(result.Message);
+            return;
+        }
+
+        StatusMessage = result.Message;
+        ClearCartSilently();
+        await AppServices.Sync.RefreshCountersAsync();
+        RequestFocus?.Invoke(PosFocus.Barcode);
+    }
+
+    private async Task CheckoutAsync()
+    {
+        if (Cart.Count == 0)
+        {
+            Ui.Error("Keranjang masih kosong.");
+            return;
+        }
+
+        var paid = decimal.TryParse(PaidText, out var parsedPaid) ? parsedPaid : 0;
+        if (!IsCreditSale && paid < GrandTotal)
+        {
+            Ui.Error($"Jumlah bayar kurang dari total ({GrandTotal:N0}).");
+            RequestFocus?.Invoke(PosFocus.Paid);
+            return;
+        }
+
+        var method = SelectedPaymentMethod?.Name ?? "CASH";
+        if (method.Equals("CASH", StringComparison.OrdinalIgnoreCase) && paid < GrandTotal)
+        {
+            Ui.Error("Pembayaran tunai kurang dari total.");
+            RequestFocus?.Invoke(PosFocus.Paid);
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var result = await AppServices.Sales.CheckoutAsync(BuildRequest());
+            if (!result.Success || result.Result is null)
+            {
+                Ui.Error(result.Message);
+                return;
+            }
+
+            var sale = result.Result;
+            StatusMessage = $"Transaksi {sale.InvoiceNumber} tersimpan.";
+            ClearCartSilently();
+            await LoadProductsAsync();
+            await AppServices.Sync.RefreshCountersAsync();
+
+            var receipt = await new ReceiptService(AppServices.Settings).BuildTextAsync(sale);
+            var window = new ReceiptWindow(sale, receipt) { Owner = System.Windows.Application.Current.MainWindow };
+            window.ShowDialog();
+
+            if (AutoPrint)
+            {
+                try
+                {
+                    await new ReceiptService(AppServices.Settings).PrintAsync(sale, showDialog: false);
+                }
+                catch
+                {
+                    // printer unavailable — receipt preview already shown
+                }
+            }
+
+            RequestFocus?.Invoke(PosFocus.Barcode);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 }

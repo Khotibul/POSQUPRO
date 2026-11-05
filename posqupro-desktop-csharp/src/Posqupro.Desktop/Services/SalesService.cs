@@ -69,7 +69,7 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
         foreach (var line in request.Lines)
         {
             var product = await database.QuerySingleAsync<Product>(
-                "SELECT id, name, stock FROM products WHERE id=$id",
+                "SELECT id, name, stock, type FROM products WHERE id=$id",
                 new { id = line.ProductId });
 
             if (product is null)
@@ -77,7 +77,9 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
                 return (false, $"Produk {line.ProductName} tidak ditemukan.", null);
             }
 
-            if (request.Type == "sell" && !string.Equals(product.Type, "service", StringComparison.OrdinalIgnoreCase) && product.Stock < line.Quantity)
+            if (request.Type == "sell" &&
+                !string.Equals(product.Type, "service", StringComparison.OrdinalIgnoreCase) &&
+                product.Stock < line.Quantity)
             {
                 return (false, $"Stok {product.Name} tidak cukup. Tersedia: {product.Stock:0.##}.", null);
             }
@@ -287,9 +289,9 @@ public sealed class SalesService(LocalDatabase database, AppSettingsStore settin
 
     public async Task AdjustStockAsync(long productId, string movementType, decimal quantity, string? reason)
     {
-        var product = await database.QuerySingleAsync<Product>(
-            "SELECT id, stock FROM products WHERE id=$id",
-            new { id = productId });
+            var product = await database.QuerySingleAsync<Product>(
+                "SELECT id, stock, type FROM products WHERE id=$id",
+                new { id = productId });
 
         if (product is null)
         {
