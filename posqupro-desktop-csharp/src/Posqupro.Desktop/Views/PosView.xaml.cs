@@ -53,10 +53,6 @@ public partial class PosView : UserControl
                     BarcodeBox.Focus();
                     BarcodeBox.SelectAll();
                     break;
-                case PosViewModel.PosFocus.Paid:
-                    PaidBox.Focus();
-                    PaidBox.SelectAll();
-                    break;
             }
         });
     }
@@ -120,20 +116,7 @@ public partial class PosView : UserControl
             e.Handled = true;
             return;
         }
-
-        if (e.Key == Key.Space && IsPaidFocused())
-        {
-            if (_vm?.ExactCashCommand is ICommand exact && exact.CanExecute(null))
-            {
-                exact.Execute(null);
-            }
-
-            e.Handled = true;
-        }
     }
-
-    private bool IsPaidFocused() => ReferenceEquals(FocusManager.GetFocusedElement(this), PaidBox) ||
-                                    ReferenceEquals(Keyboard.FocusedElement, PaidBox);
 
     private void OnSearchKeyDown(object sender, KeyEventArgs e)
     {

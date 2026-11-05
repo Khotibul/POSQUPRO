@@ -10,11 +10,11 @@ none
 false
 TRACE;RELEASE;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NET9_0_OR_GREATER;NET10_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
 F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\App.xaml
-17-1713230567
+18942285538
 
-47-1285423807
+482140400058
 209-452339878
-MainWindow.xaml;Styles\Theme.xaml;Views\CrudView.xaml;Views\DashboardView.xaml;Views\Dialogs\PromptWindow.xaml;Views\InventoryView.xaml;Views\LoginWindow.xaml;Views\ParkedView.xaml;Views\PosView.xaml;Views\PurchaseOrdersView.xaml;Views\ReceiptWindow.xaml;Views\RegisterView.xaml;Views\ReportsView.xaml;Views\SettingsView.xaml;Views\StockCountsView.xaml;Views\SyncView.xaml;Views\TransactionsView.xaml;
+MainWindow.xaml;Styles\Theme.xaml;Views\CrudView.xaml;Views\DashboardView.xaml;Views\Dialogs\PaymentWindow.xaml;Views\Dialogs\PromptWindow.xaml;Views\InventoryView.xaml;Views\LoginWindow.xaml;Views\ParkedView.xaml;Views\PosView.xaml;Views\PurchaseOrdersView.xaml;Views\ReceiptWindow.xaml;Views\RegisterView.xaml;Views\ReportsView.xaml;Views\SettingsView.xaml;Views\StockCountsView.xaml;Views\SyncView.xaml;Views\TransactionsView.xaml;
 
 False
 

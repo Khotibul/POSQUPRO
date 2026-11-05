@@ -1,0 +1,118 @@
+<Window x:Class="Posqupro.Desktop.Views.Dialogs.PaymentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pembayaran"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource Cloud}">
+    <StackPanel Margin="20" MaxHeight="720">
+        <Grid Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Text="Pembayaran" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock x:Name="InvoiceHint" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+            </StackPanel>
+            <Border Background="{StaticResource BlueWash}" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
+                <TextBlock x:Name="ItemCountText" Foreground="{StaticResource SignalBlue}"
+                           FontSize="11" FontWeight="SemiBold" />
+            </Border>
+        </Grid>
+
+        <!-- Ringkasan -->
+        <Border Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+                CornerRadius="12" Padding="14,12" Margin="0,0,0,12">
+            <StackPanel>
+                <Grid>
+                    <TextBlock Text="Subtotal" Style="{StaticResource Muted}" />
+                    <TextBlock x:Name="SubtotalText" HorizontalAlignment="Right" />
+                </Grid>
+                <Grid Margin="0,4,0,0">
+                    <TextBlock Text="Diskon" Style="{StaticResource Muted}" />
+                    <TextBlock x:Name="DiscountText" HorizontalAlignment="Right" />
+                </Grid>
+                <Grid Margin="0,4,0,0">
+                    <TextBlock Text="Pajak" Style="{StaticResource Muted}" />
+                    <TextBlock x:Name="TaxText" HorizontalAlignment="Right" />
+                </Grid>
+                <Border Style="{StaticResource Divider}" Margin="0,8" />
+                <Grid>
+                    <TextBlock Text="TOTAL" FontWeight="Bold" Foreground="{StaticResource SignalBlue}" />
+                    <TextBlock x:Name="TotalText" FontWeight="Bold" FontSize="24"
+                               Foreground="{StaticResource SignalBlue}" HorizontalAlignment="Right" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Form -->
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Pelanggan" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                <ComboBox x:Name="CustomerBox" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Metode Bayar" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                <ComboBox x:Name="MethodBox" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="90" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Diskon Transaksi" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                <TextBox x:Name="DiscountBox" Style="{StaticResource Input}" />
+            </StackPanel>
+            <ComboBox Grid.Column="2" x:Name="DiscountTypeBox" VerticalAlignment="Bottom" Margin="0,20,0,0">
+                <ComboBoxItem Content="Rp" />
+                <ComboBoxItem Content="%" />
+            </ComboBox>
+        </Grid>
+
+        <TextBlock Text="Catatan" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+        <TextBox x:Name="NotesBox" Style="{StaticResource Input}" Margin="0,0,0,10" />
+
+        <!-- Bayar -->
+        <Grid Margin="0,0,0,6">
+            <TextBlock Text="Uang Diterima" Style="{StaticResource Caption}" />
+            <TextBlock Text="Spasi = uang pas" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
+        </Grid>
+        <TextBox x:Name="PaidBox" Style="{StaticResource Input}" FontSize="20" FontWeight="Bold"
+                 Padding="12,10" Margin="0,0,0,8" />
+
+        <ItemsControl x:Name="QuickCashList" Margin="0,0,0,8">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <Grid Margin="0,0,0,10">
+            <TextBlock Text="Kembalian" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <TextBlock x:Name="ChangeText" FontSize="18" FontWeight="Bold"
+                       Foreground="{StaticResource Success}" HorizontalAlignment="Right" />
+        </Grid>
+
+        <CheckBox x:Name="AutoPrintCheck" Content="Cetak struk otomatis"
+                  IsChecked="True" Style="{StaticResource Switch}" Margin="0,0,0,12" />
+
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource Danger}" FontSize="12"
+                   TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button MinWidth="92" Margin="0,0,10,0" Click="OnCancel" Content="Batal"
+                    IsCancel="True" Style="{StaticResource GhostButton}" />
+            <Button MinWidth="130" Click="OnConfirm" Content="Bayar  ·  F2"
+                    IsDefault="True" Style="{StaticResource PrimaryButton}" FontSize="14" />
+        </StackPanel>
+    </StackPanel>
+</Window>

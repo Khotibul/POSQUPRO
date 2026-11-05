@@ -9,7 +9,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="420" />
             <ColumnDefinition Width="14" />
-            <ColumnDefinition Width="380" MinWidth="320" />
+            <ColumnDefinition Width="360" MinWidth="320" />
         </Grid.ColumnDefinitions>
 
         <!-- Products -->
@@ -108,7 +108,7 @@
             </DockPanel>
         </Border>
 
-        <!-- Cart -->
+        <!-- Cart (items + compact total) — payment form lives in PaymentWindow -->
         <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16">
             <DockPanel>
                 <!-- Cart header -->
@@ -123,35 +123,18 @@
                             Style="{StaticResource DangerButton}" HorizontalAlignment="Right" Padding="10,5" FontSize="11" />
                 </Grid>
 
-                <!-- Customer / method -->
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <ComboBox Grid.Column="0" ItemsSource="{Binding Customers}" SelectedItem="{Binding SelectedCustomer}"
-                                  DisplayMemberPath="Name" ToolTip="Pelanggan" />
-                        <ComboBox Grid.Column="2" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding SelectedPaymentMethod}"
-                                  DisplayMemberPath="Label" ToolTip="Metode bayar" />
-                    </Grid>
-                    <Grid Margin="0,8,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="90" />
-                        </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource Input}" ToolTip="Diskon" />
-                        <ComboBox Grid.Column="2" SelectedIndex="{Binding DiscountTypeIndex}" ToolTip="Tipe diskon">
-                            <ComboBoxItem Content="Rp" />
-                            <ComboBoxItem Content="%" />
-                        </ComboBox>
-                    </Grid>
-                    <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0"
-                             Style="{StaticResource Input}" ToolTip="Catatan transaksi" />
-                </StackPanel>
+                <!-- Compact meta (customer + method) -->
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding Customers}" SelectedItem="{Binding SelectedCustomer}"
+                              DisplayMemberPath="Name" ToolTip="Pelanggan" FontSize="12" />
+                    <ComboBox Grid.Column="2" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding SelectedPaymentMethod}"
+                              DisplayMemberPath="Label" ToolTip="Metode bayar" FontSize="12" />
+                </Grid>
 
                 <!-- Lines -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
@@ -197,7 +180,7 @@
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Text="Rp" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                    <TextBox Width="100" Padding="6,4"
+                                                    <TextBox Width="92" Padding="6,4"
                                                              Text="{Binding PriceText, UpdateSourceTrigger=PropertyChanged}"
                                                              TextAlignment="Right" ToolTip="Harga satuan"
                                                              IsEnabled="{Binding DataContext.CanEditPrice, RelativeSource={RelativeSource AncestorType=UserControl}}" />
@@ -220,7 +203,7 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Totals + payment -->
+                <!-- Compact footer: totals + actions only -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
                     <Border Background="{StaticResource BlueWash}" CornerRadius="12" Padding="14,12" Margin="0,0,0,10">
                         <StackPanel>
@@ -228,11 +211,11 @@
                                 <TextBlock Text="Subtotal" Style="{StaticResource Muted}" />
                                 <TextBlock Text="{Binding Subtotal, StringFormat=Rp {0:N0}}" HorizontalAlignment="Right" />
                             </Grid>
-                            <Grid>
+                            <Grid Margin="0,2,0,0">
                                 <TextBlock Text="Diskon" Style="{StaticResource Muted}" />
                                 <TextBlock Text="{Binding DiscountValue, StringFormat=-Rp {0:N0}}" HorizontalAlignment="Right" />
                             </Grid>
-                            <Grid>
+                            <Grid Margin="0,2,0,0">
                                 <TextBlock Text="Pajak" Style="{StaticResource Muted}" />
                                 <TextBlock Text="{Binding TaxAmount, StringFormat=Rp {0:N0}}" HorizontalAlignment="Right" />
                             </Grid>
@@ -251,34 +234,6 @@
                         </StackPanel>
                     </Border>
 
-                    <Grid Margin="0,0,0,6">
-                        <TextBlock Text="Bayar" Style="{StaticResource Caption}" />
-                        <TextBlock Text="Spasi = uang pas" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
-                    </Grid>
-                    <TextBox x:Name="PaidBox" Text="{Binding PaidText, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource Input}" FontSize="18" FontWeight="Bold"
-                             Padding="12,10" ToolTip="Jumlah uang diterima · F2 = bayar" />
-
-                    <ItemsControl ItemsSource="{Binding QuickCashOptions}" Margin="0,8,0,0">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Margin="0,0,6,6" Padding="10,5" FontSize="11"
-                                        Content="{Binding Label}"
-                                        Command="{Binding DataContext.QuickCashCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding Amount}"
-                                        Style="{StaticResource GhostButton}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <CheckBox Content="Cetak struk otomatis" IsChecked="{Binding AutoPrint}"
-                              Style="{StaticResource Switch}" Margin="0,2,0,6" />
-
                     <Button Content="Bayar  ·  F2" Command="{Binding CheckoutCommand}"
                             Style="{StaticResource PrimaryButton}" Height="48" FontSize="15" />
 
@@ -290,8 +245,8 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0" Content="Simpan Keranjang" Command="{Binding ParkCommand}"
                                 Style="{StaticResource GhostButton}" ToolTip="Tahan transaksi (Ctrl+S)" />
-                        <Button Grid.Column="2" Content="Transaksi Tertunda" Command="{Binding OpenParkedCommand}"
-                                Style="{StaticResource GhostButton}" />
+                        <Button Grid.Column="2" Content="Tertunda" Command="{Binding OpenParkedCommand}"
+                                Style="{StaticResource GhostButton}" ToolTip="Transaksi tertunda" />
                     </Grid>
 
                     <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Caption}"

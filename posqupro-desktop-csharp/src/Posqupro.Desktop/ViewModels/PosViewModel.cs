@@ -163,7 +163,7 @@ public sealed class PosViewModel : ViewModelBase
         RemoveCommand = new RelayCommand<CartLine>(RemoveLine);
         ClearCartCommand = new RelayCommand(ClearCart);
         ParkCommand = new AsyncRelayCommand(ParkAsync, () => CanPark);
-        CheckoutCommand = new AsyncRelayCommand(CheckoutAsync);
+        CheckoutCommand = new AsyncRelayCommand(OpenPaymentAsync, () => HasCart);
         RefreshCommand = new AsyncRelayCommand(LoadAsync);
         SelectCategoryCommand = new AsyncRelayCommand(() => LoadProductsAsync());
         QuickCashCommand = new RelayCommand<object?>(QuickCash);
@@ -807,6 +807,7 @@ public sealed class PosViewModel : ViewModelBase
             OnPropertyChanged(nameof(HasCart));
             OnPropertyChanged(nameof(CartSummary));
             OnPropertyChanged(nameof(IsCreditSale));
+            (CheckoutCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         }
         finally
         {
@@ -893,7 +894,7 @@ public sealed class PosViewModel : ViewModelBase
         RequestFocus?.Invoke(PosFocus.Barcode);
     }
 
-    private async Task CheckoutAsync()
+    private async Task OpenPaymentAsync()
     {
         if (Cart.Count == 0)
         {
@@ -901,20 +902,31 @@ public sealed class PosViewModel : ViewModelBase
             return;
         }
 
-        var paid = decimal.TryParse(PaidText, out var parsedPaid) ? parsedPaid : 0;
-        if (!IsCreditSale && paid < GrandTotal)
+        if (IsBusy)
         {
-            Ui.Error($"Jumlah bayar kurang dari total ({GrandTotal:N0}).");
-            RequestFocus?.Invoke(PosFocus.Paid);
             return;
         }
 
-        var method = SelectedPaymentMethod?.Name ?? "CASH";
-        if (method.Equals("CASH", StringComparison.OrdinalIgnoreCase) && paid < GrandTotal)
+        var dialog = new Views.Dialogs.PaymentWindow(this)
         {
-            Ui.Error("Pembayaran tunai kurang dari total.");
-            RequestFocus?.Invoke(PosFocus.Paid);
-            return;
+            Owner = System.Windows.Application.Current.MainWindow,
+        };
+        dialog.ShowDialog();
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Called from PaymentWindow after the cashier confirms the amount.</summary>
+    public async Task CheckoutFromDialogAsync()
+    {
+        if (Cart.Count == 0)
+        {
+            throw new InvalidOperationException("Keranjang masih kosong.");
+        }
+
+        var paid = decimal.TryParse(PaidText, out var parsedPaid) ? parsedPaid : 0;
+        if (!IsCreditSale && paid < GrandTotal)
+        {
+            throw new InvalidOperationException($"Jumlah bayar kurang dari total (Rp {GrandTotal:N0}).");
         }
 
         IsBusy = true;
@@ -923,8 +935,7 @@ public sealed class PosViewModel : ViewModelBase
             var result = await AppServices.Sales.CheckoutAsync(BuildRequest());
             if (!result.Success || result.Result is null)
             {
-                Ui.Error(result.Message);
-                return;
+                throw new InvalidOperationException(result.Message);
             }
 
             var sale = result.Result;
@@ -935,7 +946,10 @@ public sealed class PosViewModel : ViewModelBase
             await RefreshParkedAsync();
 
             var receipt = await new ReceiptService(AppServices.Settings).BuildTextAsync(sale);
-            var window = new ReceiptWindow(sale, receipt) { Owner = System.Windows.Application.Current.MainWindow };
+            var window = new ReceiptWindow(sale, receipt)
+            {
+                Owner = System.Windows.Application.Current.MainWindow,
+            };
             window.ShowDialog();
 
             if (AutoPrint)
