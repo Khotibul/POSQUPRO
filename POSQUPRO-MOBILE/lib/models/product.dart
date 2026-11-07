@@ -9,6 +9,9 @@ class Product {
   final int? unitQuantityId;
   final String? unitName;
   final int? taxId;
+  final String? taxName;
+  final int? supplierId;
+  final String? supplierName;
   final double costPrice;
   final double sellingPrice;
   final int stock;
@@ -30,6 +33,9 @@ class Product {
     this.unitQuantityId,
     this.unitName,
     this.taxId,
+    this.taxName,
+    this.supplierId,
+    this.supplierName,
     this.costPrice = 0,
     this.sellingPrice = 0,
     this.stock = 0,
@@ -51,6 +57,9 @@ class Product {
       unitQuantityId: json['unit_quantity_id'],
       unitName: json['unit_quantity']?['name'],
       taxId: json['tax_id'],
+      taxName: json['tax']?['name'],
+      supplierId: json['supplier_id'],
+      supplierName: json['supplier']?['name'],
       costPrice: double.tryParse(json['cost_price']?.toString() ?? '0') ?? 0,
       sellingPrice: double.tryParse(json['selling_price']?.toString() ?? json['price']?.toString() ?? '0') ?? 0,
       stock: json['stock'] ?? 0,

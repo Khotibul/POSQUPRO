@@ -5,7 +5,8 @@ import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool embedded;
+  const SettingsScreen({super.key, this.embedded = false});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -30,7 +31,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Pengaturan', style: TextStyle(fontSize: 18)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 22), onPressed: () => Navigator.pop(context)),
+        leading: widget.embedded
+            ? null
+            : IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 22), onPressed: () => Navigator.pop(context)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, size: 20),
+            tooltip: 'Edit pengaturan toko',
+            onPressed: () => _editStoreSettings(context, settings),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -71,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _Tile(icon: Icons.store_rounded, title: 'Nama Toko', value: settings.getSetting('store.name', defaultValue: '-')),
                 _Tile(icon: Icons.location_on_rounded, title: 'Alamat', value: settings.getSetting('store.address', defaultValue: '-')),
                 _Tile(icon: Icons.phone_rounded, title: 'Telepon', value: settings.getSetting('store.phone', defaultValue: '-')),
+                _Tile(icon: Icons.receipt_rounded, title: 'Footer Struk', value: settings.getSetting('receipt.footer', defaultValue: '-')),
               ],
             ),
             const SizedBox(height: 16),
@@ -87,6 +98,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _Tile(icon: Icons.print_rounded, title: 'Tipe Koneksi', value: settings.getSetting('printer.connection.type', defaultValue: '-')),
                 _Tile(icon: Icons.bluetooth_rounded, title: 'Nama Printer', value: settings.getSetting('printer.name', defaultValue: '-')),
+                _Tile(icon: Icons.description_rounded, title: 'Ukuran Kertas', value: settings.getSetting('printer.paper.width', defaultValue: '-')),
+                _Tile(icon: Icons.text_fields_rounded, title: 'Ukuran Font', value: settings.getSetting('printer.font.size', defaultValue: '-')),
               ],
             ),
             const SizedBox(height: 16),
@@ -146,6 +159,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _editStoreSettings(BuildContext context, SettingsProvider settings) async {
+    final nameCtrl = TextEditingController(text: settings.getSetting('store.name', defaultValue: ''));
+    final addressCtrl = TextEditingController(text: settings.getSetting('store.address', defaultValue: ''));
+    final phoneCtrl = TextEditingController(text: settings.getSetting('store.phone', defaultValue: ''));
+    final footerCtrl = TextEditingController(text: settings.getSetting('receipt.footer', defaultValue: ''));
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Pengaturan Toko'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nama Toko')),
+              const SizedBox(height: 8),
+              TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'Alamat'), maxLines: 2),
+              const SizedBox(height: 8),
+              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Telepon')),
+              const SizedBox(height: 8),
+              TextField(controller: footerCtrl, decoration: const InputDecoration(labelText: 'Footer Struk'), maxLines: 2),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    final provider = context.read<SettingsProvider>();
+    final data = <String, String>{
+      'store.name': nameCtrl.text.trim(),
+      'store.address': addressCtrl.text.trim(),
+      'store.phone': phoneCtrl.text.trim(),
+      'receipt.footer': footerCtrl.text.trim(),
+    };
+    var success = true;
+    for (final entry in data.entries) {
+      final saved = await provider.saveSettingPair(entry.key, entry.value);
+      if (!saved) success = false;
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? 'Pengaturan toko disimpan' : (provider.error ?? 'Gagal menyimpan')),
+        backgroundColor: success ? AppColors.success : AppColors.danger,
+      ),
+    );
+    if (success) await provider.loadPublicSettings();
   }
 }
 

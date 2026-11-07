@@ -6,7 +6,8 @@ import '../models/transaction.dart';
 import 'transaction_detail_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
-  const TransactionsScreen({super.key});
+  final bool embedded;
+  const TransactionsScreen({super.key, this.embedded = false});
 
   @override
   State<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -37,7 +38,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Transaksi', style: TextStyle(fontSize: 18)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 22), onPressed: () => Navigator.pop(context)),
+        leading: widget.embedded
+            ? null
+            : IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 22), onPressed: () => Navigator.pop(context)),
       ),
       body: Column(
         children: [

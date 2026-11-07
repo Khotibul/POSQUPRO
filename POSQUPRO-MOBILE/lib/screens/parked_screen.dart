@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/api_service.dart';
+import '../core/theme.dart';
 
 class ParkedScreen extends StatefulWidget {
   const ParkedScreen({super.key});
@@ -33,9 +34,23 @@ class _ParkedScreenState extends State<ParkedScreen> {
   }
 
   Future<void> _resume(dynamic item) async {
-    // navigasi ke POS dengan park_id
     if (!mounted) return;
-    Navigator.pushNamed(context, '/pos', arguments: {'parkId': item['id']});
+    final id = item['id'];
+    final items = (item['items'] as List?) ?? [];
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keranjang kosong'), backgroundColor: AppColors.danger),
+      );
+      return;
+    }
+    // Pass full parked payload so POS can rebuild the cart without an extra fetch
+    Navigator.pushReplacementNamed(context, '/pos', arguments: {
+      'parkId': id,
+      'items': items,
+      'discount': item['discount'],
+      'taxAmount': item['tax_amount'],
+      'notes': item['notes'],
+    });
   }
 
   Future<void> _delete(dynamic item) async {
@@ -59,13 +74,13 @@ class _ParkedScreenState extends State<ParkedScreen> {
             if (_loading) const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
             ..._items.map((p) => Card(
                   child: ListTile(
-                    title: Text(p['hold_number'] ?? p['reference'] ?? '#${p['id']}'),
-                    subtitle: Text('Total: ${p['total_amount'] ?? 0} | ${p['created_at'] ?? ''}'),
+                    title: Text(p['invoice_number'] ?? p['notes'] ?? '#${p['id']}'),
+                    subtitle: Text('Total: ${p['total'] ?? p['total_amount'] ?? 0} | ${p['created_at'] ?? ''}'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(icon: const Icon(Icons.play_arrow), onPressed: () => _resume(p)),
-                        IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(p)),
+                        IconButton(icon: const Icon(Icons.play_arrow), onPressed: () => _resume(p), tooltip: 'Pulihkan'),
+                        IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(p), tooltip: 'Hapus'),
                       ],
                     ),
                   ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'core/api_service.dart';
+import 'core/database_config_service.dart';
 import 'core/theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
@@ -38,8 +40,17 @@ import 'screens/inventory_history_screen.dart';
 import 'screens/plans_screen.dart';
 import 'screens/payments_screen.dart';
 
+Future<void> _bootstrapConfig() async {
+  final cfg = await DatabaseConfigService().getConfig();
+  if (cfg == null) return;
+  if (cfg.mode == 'hosting' || (cfg.mode == 'wifi' && cfg.apiBaseUrl.isNotEmpty)) {
+    ApiService().initFromConfig(cfg.apiBaseUrl);
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _bootstrapConfig();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -149,6 +160,8 @@ class _SplashOrLoginWrapperState extends State<SplashOrLoginWrapper> {
 
   Future<void> _init() async {
     final auth = context.read<AuthProvider>();
+    final db = context.read<LocalDatabaseProvider>();
+    await db.initFromSaved();
     final isLoggedIn = await auth.tryAutoLogin();
 
     await Future.delayed(const Duration(seconds: 2));

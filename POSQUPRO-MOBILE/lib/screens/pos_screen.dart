@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/api_service.dart';
 import '../core/theme.dart';
 import '../providers/product_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/customer_provider.dart';
 import '../models/customer.dart';
+import '../models/product.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -17,15 +19,54 @@ class PosScreen extends StatefulWidget {
 class _PosScreenState extends State<PosScreen> {
   final _searchController = TextEditingController();
   int? _selectedCategoryId;
+  bool _restoredPark = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       context.read<ProductProvider>().loadProducts(refresh: true);
       context.read<ProductProvider>().loadCategories();
       context.read<CustomerProvider>().loadCustomers(refresh: true);
+      await _maybeRestoreParked();
     });
+  }
+
+  Future<void> _maybeRestoreParked() async {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is! Map || _restoredPark) return;
+    _restoredPark = true;
+    final items = (args['items'] as List?) ?? [];
+    if (items.isEmpty) return;
+    final products = context.read<ProductProvider>();
+    final cart = context.read<CartProvider>();
+    cart.clear();
+    for (final raw in items) {
+      if (raw is! Map) continue;
+      final productId = raw['product_id'];
+      Product? product;
+      try {
+        final api = ApiService();
+        final pres = await api.get('/v1/products/$productId');
+        if (pres['success'] == true && pres['data'] is Map) {
+          product = Product.fromJson(Map<String, dynamic>.from(pres['data']));
+        }
+      } catch (_) {}
+      product ??= products.products.where((p) => p.id == productId).firstOrNull;
+      if (product == null) continue;
+      cart.addItem(product);
+      final qty = (raw['quantity'] as num?)?.toInt() ?? 1;
+      final price = (raw['unit_price'] as num?)?.toDouble() ?? product.sellingPrice;
+      cart.updateQuantity(product.id, qty);
+      cart.updatePrice(product.id, price);
+      final disc = (raw['discount'] as num?)?.toDouble();
+      if (disc != null && disc > 0) cart.updateDiscount(product.id, disc);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keranjang dipulihkan dari transaksi tertahan'), backgroundColor: AppColors.success),
+      );
+    }
   }
 
   @override
@@ -50,7 +91,13 @@ class _PosScreenState extends State<PosScreen> {
         actions: [
           if (cart.items.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.refresh_rounded, size: 22),
+              icon: const Icon(Icons.pause_circle_outline_rounded, size: 22),
+              tooltip: 'Tahan transaksi',
+              onPressed: () => _parkCart(context),
+            ),
+          if (cart.items.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, size: 22),
               onPressed: () => cart.clear(),
               tooltip: 'Kosongkan',
             ),
@@ -65,7 +112,7 @@ class _PosScreenState extends State<PosScreen> {
               controller: _searchController,
               onChanged: (v) => products.search(v),
               decoration: InputDecoration(
-                hintText: 'Cari produk...',
+                hintText: 'Cari nama / SKU / barcode...',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 prefixIconConstraints: const BoxConstraints(minWidth: 40),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -130,20 +177,20 @@ class _PosScreenState extends State<PosScreen> {
                                       const SizedBox(height: 2),
                                       Text(formatCurrency(p.sellingPrice), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
                                       const SizedBox(height: 2),
-                                      Text('Stok: ${p.stock}', style: TextStyle(fontSize: 11, color: p.isLowStock ? AppColors.danger : AppColors.textMuted)),
+                                      Text(p.type == 'service' ? 'Jasa' : 'Stok: ${p.stock}', style: TextStyle(fontSize: 11, color: p.isLowStock && p.type != 'service' ? AppColors.danger : AppColors.textMuted)),
                                     ],
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: p.stock > 0 ? () => _addToCart(context, p) : null,
+                                  onTap: p.type == 'service' || p.stock > 0 ? () => _addToCart(context, p) : null,
                                   child: Container(
                                     width: 36,
                                     height: 36,
                                     decoration: BoxDecoration(
-                                      color: p.stock > 0 ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.2),
+                                      color: p.type == 'service' || p.stock > 0 ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
                                   ),
                                 ),
                               ],
@@ -152,6 +199,52 @@ class _PosScreenState extends State<PosScreen> {
                         },
                       ),
           ),
+          if (cart.items.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Text('Keranjang', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: AppColors.primarySurface, borderRadius: BorderRadius.circular(999)),
+                        child: Text('${cart.itemCount} item', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => _openCartEditor(context),
+                        child: const Text('Edit', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  ...cart.items.take(3).map((item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(item.product.name, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
+                            Text('x${item.quantity}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            const SizedBox(width: 8),
+                            Text(formatCurrency(item.total), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      )),
+                  if (cart.items.length > 3)
+                    Text('+${cart.items.length - 3} item lainnya', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ],
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: cart.items.isEmpty
@@ -212,10 +305,29 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  void _addToCart(BuildContext context, product) {
-    context.read<CartProvider>().addItem(product);
+  void _addToCart(BuildContext context, Product product) {
+    final cart = context.read<CartProvider>();
+    if (product.type != 'service') {
+      final existing = cart.items.where((i) => i.product.id == product.id).fold<int>(0, (s, i) => s + i.quantity);
+      if (existing + 1 > product.stock) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stok ${product.name} tidak cukup'), backgroundColor: AppColors.danger),
+        );
+        return;
+      }
+    }
+    cart.addItem(product);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${product.name} ditambahkan'), duration: const Duration(seconds: 1), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _openCartEditor(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _CartEditorSheet(),
     );
   }
 
@@ -228,6 +340,231 @@ class _PosScreenState extends State<PosScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _CheckoutSheet(cart: cart, customers: customers),
+    );
+  }
+
+  Future<void> _parkCart(BuildContext context) async {
+    final cart = context.read<CartProvider>();
+    if (cart.items.isEmpty) return;
+    final labelCtrl = TextEditingController(text: 'Keranjang ${DateTime.now().ddMMHHmm()}');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Tahan Transaksi'),
+        content: TextField(
+          controller: labelCtrl,
+          decoration: const InputDecoration(labelText: 'Nama simpanan'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    try {
+      final api = ApiService();
+      final body = {
+        'items': cart.items
+            .map((i) => {
+                  'product_id': i.product.id,
+                  'quantity': i.quantity,
+                  'unit_price': i.unitPrice,
+                  'discount': i.discount,
+                })
+            .toList(),
+        'discount': cart.totalDiscount,
+        'notes': labelCtrl.text.trim(),
+      };
+      final res = await api.post('/v1/parked-transactions', body: body);
+      if (!context.mounted) return;
+      if (res['success'] == true) {
+        cart.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaksi ditahan'), backgroundColor: AppColors.success),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res['message'] ?? 'Gagal menahan transaksi'), backgroundColor: AppColors.danger),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+}
+
+extension on DateTime {
+  String ddMMHHmm() => '${day.toString().padLeft(2, '0')}/${month.toString().padLeft(2, '0')} ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+}
+
+class _CartEditorSheet extends StatefulWidget {
+  const _CartEditorSheet();
+
+  @override
+  State<_CartEditorSheet> createState() => _CartEditorSheetState();
+}
+
+class _CartEditorSheetState extends State<_CartEditorSheet> {
+  @override
+  Widget build(BuildContext context) {
+    final cart = context.watch<CartProvider>();
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: 12),
+            decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Text('Edit Keranjang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                IconButton(icon: const Icon(Icons.close_rounded, size: 22), onPressed: () => Navigator.pop(context)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: cart.items.length,
+              itemBuilder: (context, index) {
+                final item = cart.items[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+                            onPressed: () {
+                              cart.removeItem(item.product.id);
+                              if (cart.items.isEmpty && mounted) Navigator.pop(context);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => cart.updateQuantity(item.product.id, item.quantity - 1),
+                            icon: const Icon(Icons.remove_circle_outline_rounded, size: 22),
+                          ),
+                          SizedBox(
+                            width: 48,
+                            child: TextFormField(
+                              initialValue: '${item.quantity}',
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 8)),
+                              onFieldSubmitted: (v) => cart.updateQuantity(item.product.id, int.tryParse(v) ?? 1),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              if (item.product.type != 'service' && item.quantity + 1 > item.product.stock) return;
+                              cart.updateQuantity(item.product.id, item.quantity + 1);
+                            },
+                            icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
+                          ),
+                          const Spacer(),
+                          const Text('Harga', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                          const SizedBox(width: 6),
+                          SizedBox(
+                            width: 110,
+                            child: TextFormField(
+                              initialValue: item.unitPrice.toStringAsFixed(0),
+                              textAlign: TextAlign.right,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                prefixText: 'Rp ',
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              ),
+                              onFieldSubmitted: (v) => cart.updatePrice(item.product.id, double.tryParse(v) ?? item.unitPrice),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Text('Diskon', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item.discount.toStringAsFixed(0),
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                prefixText: 'Rp ',
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              ),
+                              onFieldSubmitted: (v) => cart.updateDiscount(item.product.id, double.tryParse(v) ?? 0),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(formatCurrency(item.total), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Total', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                        Text(formatCurrency(cart.total), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Selesai'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -246,17 +583,30 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   String _paymentMethod = 'cash';
   int? _selectedCustomerId;
   final _noteController = TextEditingController();
+  final _paidController = TextEditingController();
+  double _paid = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _paid = widget.cart.total;
+    _paidController.text = widget.cart.total.toStringAsFixed(0);
+  }
 
   @override
   void dispose() {
     _noteController.dispose();
+    _paidController.dispose();
     super.dispose();
   }
+
+  double get _change => (_paid - widget.cart.total).clamp(0, double.infinity);
+  bool get _isCredit => _paymentMethod == 'credit';
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -288,29 +638,27 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.customers.isNotEmpty) ...[
-                    const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButton<int>(
-                        value: _selectedCustomerId,
-                        hint: const Text('Umum', style: TextStyle(fontSize: 13)),
-                        isExpanded: true,
-                        underline: const SizedBox(),
-                        items: [
-                          const DropdownMenuItem<int>(value: null, child: Text('Umum')),
-                          ...widget.customers.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name, style: const TextStyle(fontSize: 13)))),
-                        ],
-                        onChanged: (v) => setState(() => _selectedCustomerId = v),
-                      ),
+                  const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 16),
-                  ],
+                    child: DropdownButton<int>(
+                      value: _selectedCustomerId,
+                      hint: const Text('Umum', style: TextStyle(fontSize: 13)),
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      items: [
+                        const DropdownMenuItem<int>(value: null, child: Text('Umum')),
+                        ...widget.customers.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name, style: const TextStyle(fontSize: 13)))),
+                      ],
+                      onChanged: (v) => setState(() => _selectedCustomerId = v),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   const Text('Metode Pembayaran', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                   const SizedBox(height: 8),
                   Row(
@@ -327,14 +675,47 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _noteController,
-                    decoration: const InputDecoration(hintText: 'Catatan (opsional)'),
+                    decoration: const InputDecoration(labelText: 'Catatan (opsional)'),
                     maxLines: 2,
                   ),
                   const SizedBox(height: 16),
+                  if (!_isCredit) ...[
+                    const Text('Uang Diterima', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _paidController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(prefixText: 'Rp ', hintText: 'Jumlah uang'),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      onChanged: (v) => setState(() => _paid = double.tryParse(v) ?? 0),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _quickCash('Uang Pas', widget.cart.total),
+                        _quickCash('10rb', 10000),
+                        _quickCash('20rb', 20000),
+                        _quickCash('50rb', 50000),
+                        _quickCash('100rb', 100000),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Kembalian', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(formatCurrency(_change), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.success)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _buildSummaryRow('Subtotal', formatCurrency(widget.cart.subtotal)),
                   _buildSummaryRow('Diskon', '-${formatCurrency(widget.cart.totalDiscount)}'),
                   const Divider(),
                   _buildSummaryRow('Total', formatCurrency(widget.cart.total), isBold: true),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -353,6 +734,18 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _quickCash(String label, double amount) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      onPressed: () {
+        setState(() {
+          _paid = amount;
+          _paidController.text = amount.toStringAsFixed(0);
+        });
+      },
     );
   }
 
@@ -397,6 +790,13 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     final cart = context.read<CartProvider>();
     final txProvider = context.read<TransactionProvider>();
 
+    if (!_isCredit && _paid < widget.cart.total) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jumlah bayar kurang dari total'), backgroundColor: AppColors.danger),
+      );
+      return;
+    }
+
     final items = cart.items.map((item) => ({
       'product_id': item.product.id,
       'quantity': item.quantity,
@@ -412,7 +812,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       notes: _noteController.text.isNotEmpty ? _noteController.text : null,
       payment: {
         'method': _paymentMethod,
-        'amount': cart.total,
+        'amount': _isCredit ? widget.cart.total : _paid,
       },
     );
 
@@ -420,7 +820,32 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     Navigator.pop(context);
 
     if (tx != null) {
+      final change = _isCredit ? 0.0 : _change;
       cart.clear();
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Transaksi Berhasil'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Invoice: ${tx.invoiceNumber ?? '#${tx.id}'}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Text('Total: ${formatCurrency(tx.total)}'),
+                if (change > 0) Text('Kembalian: ${formatCurrency(change)}', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+        );
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Transaksi ${tx.invoiceNumber ?? "#${tx.id}"} berhasil'), backgroundColor: AppColors.success),
       );

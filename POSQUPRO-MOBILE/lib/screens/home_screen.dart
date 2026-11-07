@@ -3,6 +3,11 @@ import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/local_database_provider.dart';
+import '../providers/product_provider.dart';
+import '../providers/transaction_provider.dart';
+import 'products_screen.dart';
+import 'transactions_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,8 +22,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<LocalDatabaseProvider>().initFromSaved();
+      if (!mounted) return;
       context.read<LocalDatabaseProvider>().loadAll();
+      context.read<ProductProvider>().loadProducts(refresh: true);
+      context.read<ProductProvider>().loadCategories();
+      context.read<TransactionProvider>().loadTransactions(refresh: true);
     });
   }
 
@@ -55,11 +65,11 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return const _DashboardTab();
       case 1:
-        return const _PlaceholderTab(title: 'Produk', icon: Icons.inventory_2_rounded);
+        return const ProductsScreen(embedded: true);
       case 2:
-        return const _PlaceholderTab(title: 'Transaksi', icon: Icons.receipt_long_rounded);
+        return const TransactionsScreen(embedded: true);
       case 3:
-        return const _PlaceholderTab(title: 'Lainnya', icon: Icons.settings_rounded);
+        return const SettingsScreen(embedded: true);
       default:
         return const _DashboardTab();
     }
@@ -124,7 +134,10 @@ class _HomeScreenState extends State<HomeScreen> {
           color: isSelected ? AppColors.primarySurface : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(item.icon, size: 22, color: isSelected ? AppColors.primary : AppColors.textMuted),
+        child: Tooltip(
+          message: item.label,
+          child: Icon(item.icon, size: 22, color: isSelected ? AppColors.primary : AppColors.textMuted),
+        ),
       ),
     );
   }
@@ -312,6 +325,9 @@ class _DashboardTab extends StatelessWidget {
               _QuickAction(icon: Icons.shopping_bag_rounded, label: 'PO', color: const Color(0xFF14B8A6), onTap: () => Navigator.pushNamed(context, '/purchase-orders')),
               _QuickAction(icon: Icons.fact_check_rounded, label: 'Stock Count', color: const Color(0xFF84CC16), onTap: () => Navigator.pushNamed(context, '/stock-counts')),
               _QuickAction(icon: Icons.category_rounded, label: 'Master Data', color: const Color(0xFF6366F1), onTap: () => Navigator.pushNamed(context, '/master-data')),
+              _QuickAction(icon: Icons.assessment_rounded, label: 'Laporan', color: const Color(0xFF8B5CF6), onTap: () => Navigator.pushNamed(context, '/reports')),
+              _QuickAction(icon: Icons.settings_rounded, label: 'Pengaturan', color: const Color(0xFF64748B), onTap: () => Navigator.pushNamed(context, '/settings')),
+              _QuickAction(icon: Icons.people_alt_rounded, label: 'Pengguna', color: const Color(0xFFF59E0B), onTap: () => Navigator.pushNamed(context, '/users')),
             ],
           ),
         ),
@@ -439,27 +455,6 @@ class _QuickAction extends StatelessWidget {
             Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _PlaceholderTab({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: AppColors.textMuted.withValues(alpha: 0.3)),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-        ],
       ),
     );
   }

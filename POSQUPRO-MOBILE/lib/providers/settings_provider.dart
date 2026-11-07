@@ -77,12 +77,40 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<bool> updateSettingsGroup(String group, Map<String, String> data) async {
     try {
+      // Website stores keys like store_name; API accepts key/value pairs via group payload
       final res = await _api.post(ApiConstants.settings, body: {
         'group': group,
         'settings': data,
       });
       if (res['success'] == true) {
         data.forEach((k, v) => _publicSettings[k] = v);
+        // also map store_name style keys used by website
+        if (group == 'store') {
+          final map = {'store.name': 'store_name', 'store.phone': 'store_phone', 'store.address': 'store_address', 'receipt.footer': 'receipt_footer'};
+          for (final e in map.entries) {
+            if (data.containsKey(e.key)) _publicSettings[e.value] = data[e.key]!;
+          }
+        }
+        notifyListeners();
+        return true;
+      }
+      _error = res['message'];
+    } catch (e) {
+      _error = 'Gagal memperbarui pengaturan';
+    }
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> saveSettingPair(String key, String value) async {
+    try {
+      final res = await _api.post(ApiConstants.settings, body: {
+        'key': key,
+        'value': value,
+        'group': key.split('.').first,
+      });
+      if (res['success'] == true) {
+        _publicSettings[key] = value;
         notifyListeners();
         return true;
       }

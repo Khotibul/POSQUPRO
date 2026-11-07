@@ -62,9 +62,24 @@ class CartProvider extends ChangeNotifier {
   void updateDiscount(int productId, double discount) {
     final index = _items.indexWhere((i) => i.product.id == productId);
     if (index >= 0) {
-      _items[index].discount = discount;
+      _items[index].discount = discount < 0 ? 0 : discount;
       notifyListeners();
     }
+  }
+
+  void updatePrice(int productId, double price) {
+    final index = _items.indexWhere((i) => i.product.id == productId);
+    if (index >= 0) {
+      _items[index].unitPrice = price < 0 ? 0 : price;
+      notifyListeners();
+    }
+  }
+
+  void loadItems(List<CartItem> items) {
+    _items
+      ..clear()
+      ..addAll(items);
+    notifyListeners();
   }
 
   void setPaymentMethod(String method) {

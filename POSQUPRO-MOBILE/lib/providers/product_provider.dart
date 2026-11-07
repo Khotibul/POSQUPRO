@@ -85,6 +85,38 @@ class ProductProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  List<Map<String, dynamic>> _units = [];
+  List<Map<String, dynamic>> _taxes = [];
+  List<Map<String, dynamic>> _suppliers = [];
+  bool _masterLoaded = false;
+
+  List<Map<String, dynamic>> get units => _units;
+  List<Map<String, dynamic>> get taxes => _taxes;
+  List<Map<String, dynamic>> get suppliers => _suppliers;
+
+  Future<void> loadMasterData({bool force = false}) async {
+    if (_masterLoaded && !force) return;
+    try {
+      final results = await Future.wait([
+        _api.get(ApiConstants.units),
+        _api.get(ApiConstants.taxes),
+        _api.get(ApiConstants.suppliers),
+      ]);
+      List<Map<String, dynamic>> parse(dynamic res) {
+        if (res is! Map || res['success'] != true) return [];
+        final data = res['data'];
+        final list = data is Map ? (data['data'] ?? []) : data;
+        return (list as List).map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+
+      _units = parse(results[0]);
+      _taxes = parse(results[1]);
+      _suppliers = parse(results[2]);
+      _masterLoaded = true;
+      notifyListeners();
+    } catch (_) {}
+  }
+
   void search(String query) {
     _searchQuery = query;
     _applyFilter();

@@ -7,7 +7,8 @@ import '../providers/product_provider.dart';
 import '../models/product.dart';
 
 class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key});
+  final bool embedded;
+  const ProductsScreen({super.key, this.embedded = false});
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -39,10 +40,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Produk', style: TextStyle(fontSize: 18)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, size: 22),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: widget.embedded
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, size: 22),
+                onPressed: () => Navigator.pop(context),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded, size: 22),
@@ -230,11 +233,18 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _skuCtrl;
+  late final TextEditingController _barcodeCtrl;
   late final TextEditingController _priceCtrl;
   late final TextEditingController _costCtrl;
   late final TextEditingController _stockCtrl;
   late final TextEditingController _minStockCtrl;
+  late final TextEditingController _descCtrl;
   int? _categoryId;
+  int? _unitQuantityId;
+  int? _taxId;
+  int? _supplierId;
+  String _type = 'finished_goods';
+  bool _isActive = true;
   bool _isSaving = false;
 
   @override
@@ -242,31 +252,47 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.product?.name ?? '');
     _skuCtrl = TextEditingController(text: widget.product?.sku ?? '');
+    _barcodeCtrl = TextEditingController(text: widget.product?.barcode ?? '');
     _priceCtrl = TextEditingController(text: widget.product?.sellingPrice.toString() ?? '');
     _costCtrl = TextEditingController(text: widget.product?.costPrice.toString() ?? '');
     _stockCtrl = TextEditingController(text: widget.product?.stock.toString() ?? '0');
     _minStockCtrl = TextEditingController(text: widget.product?.minStock.toString() ?? '0');
+    _descCtrl = TextEditingController(text: widget.product?.description ?? '');
     _categoryId = widget.product?.categoryId;
+    _unitQuantityId = widget.product?.unitQuantityId;
+    _taxId = widget.product?.taxId;
+    _supplierId = widget.product?.supplierId;
+    _type = widget.product?.type ?? 'finished_goods';
+    _isActive = widget.product?.isActive ?? true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<ProductProvider>().loadMasterData();
+    });
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _skuCtrl.dispose();
+    _barcodeCtrl.dispose();
     _priceCtrl.dispose();
     _costCtrl.dispose();
     _stockCtrl.dispose();
     _minStockCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories = context.watch<ProductProvider>().categories;
+    final provider = context.watch<ProductProvider>();
+    final categories = provider.categories;
+    final units = provider.units;
+    final taxes = provider.taxes;
+    final suppliers = provider.suppliers;
     final isEdit = widget.product != null;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -302,17 +328,80 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                       validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _skuCtrl,
-                      decoration: const InputDecoration(labelText: 'SKU'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _skuCtrl,
+                            decoration: const InputDecoration(labelText: 'SKU'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _barcodeCtrl,
+                            decoration: const InputDecoration(labelText: 'Barcode'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _type,
+                      decoration: const InputDecoration(labelText: 'Tipe *'),
+                      items: const [
+                        DropdownMenuItem(value: 'finished_goods', child: Text('Barang Jadi')),
+                        DropdownMenuItem(value: 'raw_material', child: Text('Bahan Baku')),
+                        DropdownMenuItem(value: 'service', child: Text('Jasa')),
+                      ],
+                      onChanged: (v) => setState(() => _type = v ?? 'finished_goods'),
                     ),
                     const SizedBox(height: 12),
                     if (categories.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
                         initialValue: _categoryId,
                         decoration: const InputDecoration(labelText: 'Kategori'),
-                        items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text('- Tanpa kategori -')),
+                          ...categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                        ],
                         onChanged: (v) => setState(() => _categoryId = v),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (units.isNotEmpty) ...[
+                      DropdownButtonFormField<int>(
+                        initialValue: _unitQuantityId,
+                        decoration: const InputDecoration(labelText: 'Satuan'),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text('- Pilih satuan -')),
+                          ...units.map((u) => DropdownMenuItem(value: u['id'] as int, child: Text('${u['name']}'))),
+                        ],
+                        onChanged: (v) => setState(() => _unitQuantityId = v),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (taxes.isNotEmpty) ...[
+                      DropdownButtonFormField<int>(
+                        initialValue: _taxId,
+                        decoration: const InputDecoration(labelText: 'Pajak'),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text('- Tanpa pajak -')),
+                          ...taxes.map((t) => DropdownMenuItem(value: t['id'] as int, child: Text('${t['name']} (${t['rate'] ?? 0}%)'))),
+                        ],
+                        onChanged: (v) => setState(() => _taxId = v),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (suppliers.isNotEmpty) ...[
+                      DropdownButtonFormField<int>(
+                        initialValue: _supplierId,
+                        decoration: const InputDecoration(labelText: 'Supplier'),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text('- Pilih supplier -')),
+                          ...suppliers.map((s) => DropdownMenuItem(value: s['id'] as int, child: Text('${s['name']}'))),
+                        ],
+                        onChanged: (v) => setState(() => _supplierId = v),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -330,8 +419,9 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                         Expanded(
                           child: TextFormField(
                             controller: _costCtrl,
-                            decoration: const InputDecoration(labelText: 'Harga Beli', prefixText: 'Rp '),
+                            decoration: const InputDecoration(labelText: 'Harga Beli *', prefixText: 'Rp '),
                             keyboardType: TextInputType.number,
+                            validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                           ),
                         ),
                       ],
@@ -342,8 +432,9 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                         Expanded(
                           child: TextFormField(
                             controller: _stockCtrl,
-                            decoration: const InputDecoration(labelText: 'Stok'),
+                            decoration: const InputDecoration(labelText: 'Stok *'),
                             keyboardType: TextInputType.number,
+                            validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -356,6 +447,21 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _descCtrl,
+                      decoration: const InputDecoration(labelText: 'Deskripsi'),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Produk Aktif', style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Nonaktifkan agar tidak muncul di kasir', style: TextStyle(fontSize: 11)),
+                      value: _isActive,
+                      onChanged: (v) => setState(() => _isActive = v),
+                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -383,14 +489,21 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     setState(() => _isSaving = true);
 
     final api = ApiService();
-    final body = {
+    final body = <String, dynamic>{
       'name': _nameCtrl.text,
       'sku': _skuCtrl.text.isNotEmpty ? _skuCtrl.text : null,
+      'barcode': _barcodeCtrl.text.isNotEmpty ? _barcodeCtrl.text : null,
+      'type': _type,
       'selling_price': double.tryParse(_priceCtrl.text) ?? 0,
       'cost_price': double.tryParse(_costCtrl.text) ?? 0,
       'stock': int.tryParse(_stockCtrl.text) ?? 0,
       'min_stock': int.tryParse(_minStockCtrl.text) ?? 0,
       'category_id': _categoryId,
+      'unit_quantity_id': _unitQuantityId,
+      'tax_id': _taxId,
+      'supplier_id': _supplierId,
+      'description': _descCtrl.text.isNotEmpty ? _descCtrl.text : null,
+      'is_active': _isActive,
     };
 
     final isEdit = widget.product != null;
@@ -408,7 +521,12 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEdit ? 'Produk diperbarui' : 'Produk ditambahkan')));
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Gagal menyimpan'), backgroundColor: AppColors.danger));
+      final errors = res['errors'];
+      String msg = res['message'] ?? 'Gagal menyimpan';
+      if (errors is Map && errors.isNotEmpty) {
+        msg = errors.values.expand((v) => v is List ? v : [v]).join('\n');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.danger));
     }
   }
 }
