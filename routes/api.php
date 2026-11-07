@@ -7,19 +7,23 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\InventoryHistoryController;
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\ParkedTransactionController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\RegisterController;
 use App\Http\Controllers\Api\RegisterSessionController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\SaasController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\StockCountController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\SupplierInvoiceController;
 use App\Http\Controllers\Api\TaxController;
+use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UnitQuantityController;
 use App\Http\Controllers\Api\UserController;
@@ -161,4 +165,13 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('finance/summary', [FinanceController::class, 'summary']);
     Route::get('reports/sales', [ReportController::class, 'sales']);
     Route::get('reports/inventory', [ReportController::class, 'inventory']);
+
+    // SaaS management (mirrors web Saas/Tenant/Plan/Invoice controllers, JSON for mobile)
+    Route::get('saas/dashboard', [SaasController::class, 'dashboard']);
+    Route::apiResource('tenants', TenantController::class);
+    Route::post('tenants/{tenant}/suspend', [TenantController::class, 'suspend']);
+    Route::post('tenants/{tenant}/activate', [TenantController::class, 'activate']);
+    Route::apiResource('plans', PlanController::class);
+    Route::apiResource('invoices', InvoiceController::class)->except(['update']);
+    Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'markPaid']);
 });
