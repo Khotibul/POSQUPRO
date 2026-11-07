@@ -163,7 +163,7 @@ public sealed class PosViewModel : ViewModelBase
         RemoveCommand = new RelayCommand<CartLine>(RemoveLine);
         ClearCartCommand = new RelayCommand(ClearCart);
         ParkCommand = new AsyncRelayCommand(ParkAsync, () => CanPark);
-        CheckoutCommand = new AsyncRelayCommand(OpenPaymentAsync, () => HasCart);
+        CheckoutCommand = new AsyncRelayCommand(CheckoutAsync, () => HasCart);
         RefreshCommand = new AsyncRelayCommand(LoadAsync);
         SelectCategoryCommand = new AsyncRelayCommand(() => LoadProductsAsync());
         QuickCashCommand = new RelayCommand<object?>(QuickCash);
@@ -894,7 +894,7 @@ public sealed class PosViewModel : ViewModelBase
         RequestFocus?.Invoke(PosFocus.Barcode);
     }
 
-    private async Task OpenPaymentAsync()
+    private async Task CheckoutAsync()
     {
         if (Cart.Count == 0)
         {
@@ -902,31 +902,12 @@ public sealed class PosViewModel : ViewModelBase
             return;
         }
 
-        if (IsBusy)
-        {
-            return;
-        }
-
-        var dialog = new Views.Dialogs.PaymentWindow(this)
-        {
-            Owner = System.Windows.Application.Current.MainWindow,
-        };
-        dialog.ShowDialog();
-        await Task.CompletedTask;
-    }
-
-    /// <summary>Called from PaymentWindow after the cashier confirms the amount.</summary>
-    public async Task CheckoutFromDialogAsync()
-    {
-        if (Cart.Count == 0)
-        {
-            throw new InvalidOperationException("Keranjang masih kosong.");
-        }
-
         var paid = decimal.TryParse(PaidText, out var parsedPaid) ? parsedPaid : 0;
         if (!IsCreditSale && paid < GrandTotal)
         {
-            throw new InvalidOperationException($"Jumlah bayar kurang dari total (Rp {GrandTotal:N0}).");
+            Ui.Error($"Jumlah bayar kurang dari total ({GrandTotal:N0}).");
+            RequestFocus?.Invoke(PosFocus.Paid);
+            return;
         }
 
         IsBusy = true;
@@ -935,7 +916,8 @@ public sealed class PosViewModel : ViewModelBase
             var result = await AppServices.Sales.CheckoutAsync(BuildRequest());
             if (!result.Success || result.Result is null)
             {
-                throw new InvalidOperationException(result.Message);
+                Ui.Error(result.Message);
+                return;
             }
 
             var sale = result.Result;

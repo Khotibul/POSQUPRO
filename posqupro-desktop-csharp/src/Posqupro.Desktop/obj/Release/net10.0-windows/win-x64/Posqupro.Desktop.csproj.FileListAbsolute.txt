@@ -293,5 +293,3 @@ F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\
 F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\win-x64\refint\PosquproDesktop.dll
 F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\win-x64\Posqupro.Desktop.genruntimeconfig.cache
 F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\win-x64\ref\PosquproDesktop.dll
-F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\win-x64\Views\Dialogs\PaymentWindow.baml
-F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\win-x64\Views\Dialogs\PaymentWindow.g.cs
