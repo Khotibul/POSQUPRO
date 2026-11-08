@@ -142,10 +142,14 @@ Route::middleware('auth')->group(function () {
     })->name('reports.index');
 
     // Users & RBAC
-    Route::get('/users', function () {
+    Route::get('/users', function (Request $request) {
         return Inertia::render('Users/Index', [
-            'users' => User::with('roles')->paginate(15),
+            'users' => User::with('roles')
+                ->when($request->tenant_id, fn ($q, $v) => $q->where('tenant_id', $v))
+                ->paginate(15)
+                ->withQueryString(),
             'roles' => Role::all(),
+            'tenantId' => $request->tenant_id,
         ]);
     })->name('web.users.index');
 

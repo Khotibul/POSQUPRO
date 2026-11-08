@@ -24,6 +24,9 @@ const showEditModal = ref(false)
 const loading = ref(false)
 const form = ref({
   name: props.tenant.name,
+  slug: props.tenant.slug,
+  domain: props.tenant.domain,
+  subdomain: props.tenant.subdomain,
   email: props.tenant.email,
   phone: props.tenant.phone,
   address: props.tenant.address,
@@ -31,16 +34,20 @@ const form = ref({
   province: props.tenant.province,
   status: props.tenant.status,
   plan_id: props.tenant.plan_id,
+  trial_ends_at: (props.tenant.trial_ends_at || '').slice(0, 10),
 })
 
-const statusColor = { active: 'success', trial: 'info', suspended: 'danger', inactive: 'warning' }
-const statusLabel = { active: 'Aktif', trial: 'Trial', suspended: 'Suspended', inactive: 'Nonaktif' }
+const statusColor = { active: 'success', trial: 'info', suspended: 'danger', inactive: 'warning', expired: 'default' }
+const statusLabel = { active: 'Aktif', trial: 'Trial', suspended: 'Suspended', inactive: 'Nonaktif', expired: 'Kedaluwarsa' }
 const invoiceColor = { paid: 'success', pending: 'warning', overdue: 'danger', draft: 'info' }
 const fc = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID')
 
 function openEdit() {
   form.value = {
     name: props.tenant.name,
+    slug: props.tenant.slug,
+    domain: props.tenant.domain,
+    subdomain: props.tenant.subdomain,
     email: props.tenant.email,
     phone: props.tenant.phone,
     address: props.tenant.address,
@@ -48,6 +55,7 @@ function openEdit() {
     province: props.tenant.province,
     status: props.tenant.status,
     plan_id: props.tenant.plan_id,
+    trial_ends_at: (props.tenant.trial_ends_at || '').slice(0, 10),
   }
   showEditModal.value = true
 }
@@ -136,7 +144,8 @@ function activateTenant() {
           <div class="flex justify-between"><span class="text-muted-foreground">Kota</span><span>{{ tenant.city || '-' }}</span></div>
           <div class="flex justify-between"><span class="text-muted-foreground">Provinsi</span><span>{{ tenant.province || '-' }}</span></div>
           <div class="flex justify-between"><span class="text-muted-foreground">NPWP</span><span>{{ tenant.tax_number || '-' }}</span></div>
-          <div class="flex justify-between"><span class="text-muted-foreground">Domain</span><span>{{ tenant.domain || '-' }}</span></div>
+          <div class="flex justify-between"><span class="text-muted-foreground">Domain</span><span class="font-mono text-xs">{{ tenant.subdomain && tenant.domain ? tenant.subdomain + '.' + tenant.domain : (tenant.domain || tenant.subdomain || '-') }}</span></div>
+          <div class="flex justify-between"><span class="text-muted-foreground">Slug</span><span class="font-mono text-xs">{{ tenant.slug || '-' }}</span></div>
           <div v-if="tenant.trial_ends_at" class="flex justify-between"><span class="text-muted-foreground">Trial Berakhir</span><span :class="tenant.status === 'trial' ? 'text-yellow-600 font-medium' : ''">{{ new Date(tenant.trial_ends_at).toLocaleDateString('id-ID') }}</span></div>
           <div v-if="tenant.suspended_at" class="flex justify-between"><span class="text-muted-foreground">Suspensi</span><span class="text-red-600">{{ tenant.suspension_reason || 'Ditangguhkan' }}</span></div>
         </div>
@@ -188,6 +197,18 @@ function activateTenant() {
             <label class="block text-sm font-medium mb-1">Provinsi</label>
             <input v-model="form.province" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
           </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-medium mb-1">Slug</label>
+            <input v-model="form.slug" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm font-mono" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Domain</label>
+            <input v-model="form.domain" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="posqupro.co-id.id" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Subdomain</label>
+            <input v-model="form.subdomain" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="toko-sejahtera" />
+          </div>
           <div>
             <label class="block text-sm font-medium mb-1">Status</label>
             <select v-model="form.status" class="w-full px-3 py-2 border border-border rounded-lg text-sm">
@@ -195,9 +216,14 @@ function activateTenant() {
               <option value="trial">Trial</option>
               <option value="inactive">Nonaktif</option>
               <option value="suspended">Suspended</option>
+              <option value="expired">Kedaluwarsa</option>
             </select>
           </div>
           <div>
+            <label class="block text-sm font-medium mb-1">Trial Berakhir</label>
+            <input v-model="form.trial_ends_at" type="date" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+          </div>
+          <div class="col-span-2">
             <label class="block text-sm font-medium mb-1">Paket</label>
             <select v-model="form.plan_id" class="w-full px-3 py-2 border border-border rounded-lg text-sm">
               <option :value="null">Free</option>

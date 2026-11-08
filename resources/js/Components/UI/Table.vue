@@ -54,7 +54,14 @@ function isSelected(row) {
   return localSelected.value.some(r => r[props.rowKey] === row[props.rowKey])
 }
 
-function handleAction(action, row) { emit('action', { action, row }) }
+function handleAction(action, row) {
+  if (typeof action.onClick === 'function') action.onClick(row)
+  emit('action', { action, row })
+}
+function goToPage(page) {
+  if (typeof props.pagination?.onChange === 'function') props.pagination.onChange(page)
+  emit('page-change', page)
+}
 function selectAll() {
   if (localSelected.value.length === sortedData.value.length) {
     localSelected.value = []
@@ -126,8 +133,8 @@ function selectAll() {
         Menampilkan {{ (props.pagination.page - 1) * props.pagination.perPage + 1 }} - {{ Math.min(props.pagination.page * props.pagination.perPage, props.pagination.total) }} dari {{ props.pagination.total }}
       </div>
       <div class="flex gap-2">
-        <Button size="sm" variant="outline" :disabled="props.pagination.page === 1" @click="$emit('page-change', props.pagination.page - 1)">Sebelumnya</Button>
-        <Button size="sm" variant="outline" :disabled="props.pagination.page * props.pagination.perPage >= props.pagination.total" @click="$emit('page-change', props.pagination.page + 1)">Selanjutnya</Button>
+        <Button size="sm" variant="outline" :disabled="props.pagination.page === 1" @click="goToPage(props.pagination.page - 1)">Sebelumnya</Button>
+        <Button size="sm" variant="outline" :disabled="props.pagination.page * props.pagination.perPage >= props.pagination.total" @click="goToPage(props.pagination.page + 1)">Selanjutnya</Button>
       </div>
     </div>
   </div>

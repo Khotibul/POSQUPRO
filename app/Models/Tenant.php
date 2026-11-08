@@ -29,6 +29,7 @@ class Tenant extends Model
         'tax_number',
         'logo',
         'domain',
+        'subdomain',
         'owner_id',
         'plan_id',
         'status',
@@ -113,6 +114,7 @@ class Tenant extends Model
             'trial' => 'bg-blue-100 text-blue-700',
             'inactive' => 'bg-gray-100 text-gray-700',
             'suspended' => 'bg-red-100 text-red-700',
+            'expired' => 'bg-orange-100 text-orange-700',
             default => 'bg-gray-100 text-gray-700',
         };
     }

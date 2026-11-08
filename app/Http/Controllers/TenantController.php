@@ -17,10 +17,19 @@ class TenantController extends Controller
 {
     public function index(Request $request)
     {
+        $q = trim((string) ($request->q ?? $request->search ?? ''));
+
         $tenants = Tenant::with(['owner', 'plan'])
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%"))
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
-            ->when($request->plan_id, fn ($q, $p) => $q->where('plan_id', $p))
+            ->withCount(['users', 'branches'])
+            ->when($q !== '', fn ($query) => $query->where(function ($w) use ($q) {
+                $w->where('name', 'like', "%{$q}%")
+                    ->orWhere('slug', 'like', "%{$q}%")
+                    ->orWhere('domain', 'like', "%{$q}%")
+                    ->orWhere('subdomain', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%");
+            }))
+            ->when($request->status, fn ($query, $s) => $query->where('status', $s))
+            ->when($request->plan_id, fn ($query, $p) => $query->where('plan_id', $p))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -33,6 +42,7 @@ class TenantController extends Controller
             'active' => Tenant::where('status', 'active')->count(),
             'trial' => Tenant::where('status', 'trial')->count(),
             'suspended' => Tenant::where('status', 'suspended')->count(),
+            'expired' => Tenant::where('status', 'expired')->count(),
             'revenue' => DB::table('invoices')->where('status', 'paid')->sum('total'),
         ];
 
@@ -43,6 +53,12 @@ class TenantController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:80|unique:tenants,slug',
+            'domain' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i', 'unique:tenants,domain'],
+            'subdomain' => ['nullable', 'string', 'max:63', 'regex:/^[a-z0-9-]+$/i', 'unique:tenants,subdomain'],
+            'status' => 'nullable|in:active,inactive,suspended,trial,expired',
+            'trial_ends_at' => 'nullable|date',
+            'suspended_at' => 'nullable|date',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:30',
             'address' => 'nullable|string',
@@ -54,16 +70,22 @@ class TenantController extends Controller
             'plan_id' => 'nullable|exists:plans,id',
         ]);
 
+        $status = $validated['status'] ?? 'trial';
+
         $tenant = Tenant::create([
             'name' => $validated['name'],
+            'slug' => $validated['slug'] ?? null,
+            'domain' => $validated['domain'] ?? null,
+            'subdomain' => $validated['subdomain'] ?? null,
             'email' => $validated['email'] ?? $validated['owner_email'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'address' => $validated['address'] ?? null,
             'city' => $validated['city'] ?? null,
             'province' => $validated['province'] ?? null,
             'plan_id' => $validated['plan_id'] ?? null,
-            'status' => 'trial',
-            'trial_ends_at' => now()->addDays(14),
+            'status' => $status,
+            'trial_ends_at' => $validated['trial_ends_at'] ?? ($status === 'trial' ? now()->addDays(14) : null),
+            'suspended_at' => $validated['suspended_at'] ?? null,
         ]);
 
         // Create the tenant admin account (usable on website + desktop Java login)
@@ -119,14 +141,24 @@ class TenantController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'slug' => 'sometimes|nullable|string|max:80|unique:tenants,slug,'.$tenant->id,
+            'domain' => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i', 'unique:tenants,domain,'.$tenant->id],
+            'subdomain' => ['sometimes', 'nullable', 'string', 'max:63', 'regex:/^[a-z0-9-]+$/i', 'unique:tenants,subdomain,'.$tenant->id],
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:30',
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:100',
             'province' => 'nullable|string|max:100',
-            'status' => 'required|in:active,inactive,suspended,trial',
+            'status' => 'required|in:active,inactive,suspended,trial,expired',
+            'trial_ends_at' => 'nullable|date',
+            'suspended_at' => 'nullable|date',
             'plan_id' => 'nullable|exists:plans,id',
         ]);
+
+        // Slug is never cleared once set; keep the old value when omitted/empty.
+        if (array_key_exists('slug', $validated) && $validated['slug'] === null) {
+            unset($validated['slug']);
+        }
 
         $tenant->update($validated);
 

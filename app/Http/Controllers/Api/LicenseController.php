@@ -31,7 +31,7 @@ class LicenseController extends Controller
             return response()->json(['valid' => false, 'error' => 'API key tidak valid.'], 401);
         }
 
-        if ($tenant->status === 'suspended' || $tenant->status === 'inactive') {
+        if (in_array($tenant->status, ['suspended', 'inactive', 'expired'], true)) {
             return response()->json([
                 'valid' => false,
                 'licenseCode' => $tenant->license_code,
