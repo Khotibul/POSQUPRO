@@ -16,8 +16,8 @@ class DbSetupScreen extends StatefulWidget {
 
 class _DbSetupScreenState extends State<DbSetupScreen> {
   final _wifiHost = TextEditingController();
-  final _hostingHost = TextEditingController();
-  String _mode = 'wifi';
+  final _hostingHost = TextEditingController(text: 'https://posqupro.co-id.id');
+  String _mode = 'hosting';
   bool _testing = false;
   String _status = '';
 
@@ -128,8 +128,8 @@ class _DbSetupScreenState extends State<DbSetupScreen> {
               child: TextField(
                 controller: _hostingHost,
                 decoration: const InputDecoration(
-                  labelText: 'Domain/URL Hosting (contoh: https://posqupro.com)',
-                  hintText: 'https://posqupro.com',
+                  labelText: 'Domain/URL Hosting (contoh: https://posqupro.co-id.id)',
+                  hintText: 'https://posqupro.co-id.id',
                 ),
                 keyboardType: TextInputType.url,
               ),

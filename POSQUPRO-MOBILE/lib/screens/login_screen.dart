@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -11,10 +12,20 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _savedEmailKey = 'login_saved_email';
+  static const _savedPasswordKey = 'login_saved_password';
+
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberPassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
 
   @override
   void dispose() {
@@ -23,11 +34,39 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString(_savedEmailKey) ?? '';
+    final password = prefs.getString(_savedPasswordKey) ?? '';
+    if (!mounted) return;
+    setState(() {
+      if (email.isNotEmpty) _emailCtrl.text = email;
+      if (password.isNotEmpty) {
+        _passwordCtrl.text = password;
+        _rememberPassword = true;
+      }
+    });
+  }
+
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberPassword) {
+      await prefs.setString(_savedEmailKey, _emailCtrl.text.trim());
+      await prefs.setString(_savedPasswordKey, _passwordCtrl.text);
+    } else {
+      await prefs.remove(_savedEmailKey);
+      await prefs.remove(_savedPasswordKey);
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final success = await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
-    if (success && mounted) {
+    if (!mounted) return;
+    if (success) {
+      await _saveCredentials();
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     }
   }
@@ -52,13 +91,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 56,
-                      height: 56,
+                      width: 120,
+                      height: 64,
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [AppColors.primary, Color(0xFF818CF8)]),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.point_of_sale_rounded, size: 28, color: Colors.white),
+                      child: Image.asset(
+                        'assets/icon/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.point_of_sale_rounded,
+                          size: 32,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -96,7 +151,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (v) => (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 32,
+                        child: Checkbox(
+                          value: _rememberPassword,
+                          onChanged: (v) => setState(() => _rememberPassword = v ?? false),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Simpan email & kata sandi',
+                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Consumer<AuthProvider>(
                     builder: (context, auth, _) {
                       return Column(

@@ -44,9 +44,18 @@ import 'screens/payments_screen.dart';
 Future<void> _bootstrapConfig() async {
   final cfg = await DatabaseConfigService().getConfig();
   if (cfg == null) return;
-  if (cfg.mode == 'hosting' || (cfg.mode == 'wifi' && cfg.apiBaseUrl.isNotEmpty)) {
-    ApiService().initFromConfig(cfg.apiBaseUrl);
+  final url = cfg.apiBaseUrl;
+  if (url.isEmpty || _isDevUrl(url)) return;
+  if (cfg.mode == 'hosting' || cfg.mode == 'wifi') {
+    ApiService().initFromConfig(url);
   }
+}
+
+bool _isDevUrl(String url) {
+  final lower = url.toLowerCase();
+  return lower.contains('127.0.0.1') ||
+      lower.contains('localhost') ||
+      lower.contains('10.0.2.2');
 }
 
 void main() async {

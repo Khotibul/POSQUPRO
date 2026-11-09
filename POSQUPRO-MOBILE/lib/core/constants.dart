@@ -1,6 +1,5 @@
-import 'dart:io';
-
 class ApiConstants {
+  static const String productionBaseUrl = 'https://posqupro.co-id.id/api';
   static String baseUrl = _detectBaseUrl();
   static const String loginUrl = '/v1/login';
   static const String logoutUrl = '/v1/logout';
@@ -31,13 +30,7 @@ class ApiConstants {
   static const String users = '/v1/users';
 
   static String _detectBaseUrl() {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
-    } else if (Platform.isIOS) {
-      return 'http://127.0.0.1:8000/api';
-    } else {
-      return 'http://127.0.0.1:8000/api';
-    }
+    return productionBaseUrl;
   }
 }
 
