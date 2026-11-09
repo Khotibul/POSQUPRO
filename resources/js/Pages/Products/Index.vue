@@ -13,7 +13,7 @@ import Badge from '@/Components/UI/Badge.vue'
 import {
   PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon,
   EyeIcon, CubeIcon, ArrowDownTrayIcon, ArrowUpTrayIcon,
-  XMarkIcon, CheckIcon
+  XMarkIcon, CheckIcon, PhotoIcon
 } from '@heroicons/vue/24/outline'
 
 const page = usePage()
@@ -67,6 +67,7 @@ const columns = computed(() => [
 const actions = [
   { label: 'Lihat', icon: EyeIcon, variant: 'ghost', onClick: (row) => viewProduct(row) },
   { label: 'Edit', icon: PencilIcon, variant: 'ghost', onClick: (row) => editProduct(row) },
+  { label: 'Foto', icon: PhotoIcon, variant: 'ghost', onClick: (row) => openPhotoModal(row) },
   { label: 'Hapus', icon: TrashIcon, variant: 'danger', onClick: (row) => confirmDelete(row), show: (row) => row.stock === 0 },
 ]
 
@@ -147,6 +148,92 @@ function confirmDelete(product) {
     })
   }
 }
+
+// --- Foto produk: upload + generate teks nama di foto ---
+const showPhotoModal = ref(false)
+const photoProduct = ref(null)
+const photoFile = ref(null)
+const photoLocalPreview = ref('')
+const photoLoading = ref(false)
+
+function openPhotoModal(product) {
+  photoProduct.value = product
+  photoFile.value = null
+  photoLocalPreview.value = ''
+  showPhotoModal.value = true
+}
+
+function closePhotoModal() {
+  if (photoLocalPreview.value) URL.revokeObjectURL(photoLocalPreview.value)
+  showPhotoModal.value = false
+}
+
+function onPhotoPicked(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    error('Maksimal ukuran foto 5 MB')
+    event.target.value = ''
+    return
+  }
+  if (photoLocalPreview.value) URL.revokeObjectURL(photoLocalPreview.value)
+  photoFile.value = file
+  photoLocalPreview.value = URL.createObjectURL(file)
+}
+
+async function apiFetch(url, options = {}) {
+  const xsrf = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.split('=')[1]
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf) } : {}),
+      ...(options.headers || {}),
+    },
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const messages = body.errors ? Object.values(body.errors).flat() : []
+    throw new Error(body.message || messages.join('\n') || 'Terjadi kesalahan')
+  }
+  return body
+}
+
+async function uploadPhoto() {
+  if (!photoFile.value) { error('Pilih foto dulu'); return }
+  photoLoading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('photo', photoFile.value)
+    const body = await apiFetch(`/api/v1/products/${photoProduct.value.id}/photo`, { method: 'POST', body: fd })
+    photoProduct.value = { ...photoProduct.value, ...body.data }
+    photoFile.value = null
+    photoLocalPreview.value = ''
+    success('Foto produk diupload')
+    router.reload({ only: ['products'] })
+  } catch (e) {
+    error(e.message)
+  } finally {
+    photoLoading.value = false
+  }
+}
+
+async function generateLabelPhoto() {
+  if (!photoProduct.value?.photo && !photoProduct.value?.image) { error('Upload foto dulu'); return }
+  photoLoading.value = true
+  try {
+    const body = await apiFetch(`/api/v1/products/${photoProduct.value.id}/generate-label`, { method: 'POST' })
+    photoProduct.value = { ...photoProduct.value, ...body.data }
+    success('Foto berteks berhasil digenerate')
+    router.reload({ only: ['products'] })
+  } catch (e) {
+    error(e.message)
+  } finally {
+    photoLoading.value = false
+  }
+}
 </script>
 <template>
   <AppLayout>
@@ -218,5 +305,65 @@ function confirmDelete(product) {
         </div>
       </div>
     </Modal>
+
+    <!-- Modal Foto Produk -->
+    <div v-if="showPhotoModal && photoProduct" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-card border border-border rounded-xl w-full max-w-lg p-5 shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-bold text-foreground">Foto Produk</h3>
+            <p class="text-sm text-muted-foreground truncate max-w-[320px]">{{ photoProduct.name }}</p>
+          </div>
+          <button class="p-1.5 rounded-md hover:bg-accent" @click="closePhotoModal">
+            <XMarkIcon class="w-5 h-5 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div class="rounded-lg bg-muted border border-border h-56 flex items-center justify-center overflow-hidden mb-4">
+          <img
+            v-if="photoLocalPreview || photoProduct.image || photoProduct.photo"
+            :src="photoLocalPreview || photoProduct.image || photoProduct.photo"
+            class="max-h-full max-w-full object-contain"
+            alt="Foto produk"
+          />
+          <div v-else class="text-center text-muted-foreground">
+            <PhotoIcon class="w-10 h-10 mx-auto mb-2" />
+            <p class="text-sm">Belum ada foto</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-muted-foreground mb-3">
+          Generate menambahkan banner <strong>nama produk</strong> di bagian bawah foto. Foto asli tetap tersimpan.
+        </p>
+
+        <label class="block">
+          <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onPhotoPicked" />
+          <span class="inline-flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-md cursor-pointer hover:bg-accent">
+            <ArrowUpTrayIcon class="w-4 h-4" /> Pilih Foto (maks 5 MB)
+          </span>
+        </label>
+
+        <div class="flex flex-wrap gap-2 mt-4">
+          <Button :disabled="photoLoading || !photoFile" @click="uploadPhoto">
+            <ArrowUpTrayIcon class="w-4 h-4" /> Upload Foto
+          </Button>
+          <Button variant="outline" :disabled="photoLoading || (!photoProduct.photo && !photoProduct.image)" @click="generateLabelPhoto">
+            <PhotoIcon class="w-4 h-4" /> Generate Foto Berteks
+          </Button>
+          <a
+            v-if="photoProduct.image"
+            :href="photoProduct.image"
+            download
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-md hover:bg-accent text-foreground"
+          >
+            <ArrowDownTrayIcon class="w-4 h-4" /> Download
+          </a>
+        </div>
+
+        <p v-if="photoLoading" class="text-xs text-muted-foreground mt-3">Memproses...</p>
+      </div>
+    </div>
   </AppLayout>
 </template>

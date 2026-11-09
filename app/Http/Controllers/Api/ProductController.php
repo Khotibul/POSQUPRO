@@ -6,12 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\PlanService;
+use App\Services\ProductPhotoService;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class ProductController extends Controller
 {
-    public function __construct(protected ProductService $service) {}
+    public function __construct(
+        protected ProductService $service,
+        protected ProductPhotoService $photoService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -89,5 +94,35 @@ class ProductController extends Controller
         $this->service->delete($product);
 
         return response()->json(['message' => 'Product deleted']);
+    }
+
+    public function uploadPhoto(Request $request, Product $product)
+    {
+        $request->validate([
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        try {
+            $product = $this->photoService->upload($product, $request->file('photo'));
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return new ProductResource($product);
+    }
+
+    public function generateLabelPhoto(Product $product)
+    {
+        if (! $product->photo && ! $product->image) {
+            return response()->json(['message' => 'Upload foto produk dulu sebelum generate teks.'], 422);
+        }
+
+        try {
+            $product = $this->photoService->generateLabelPhoto($product);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return new ProductResource($product);
     }
 }

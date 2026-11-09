@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../core/api_service.dart';
 import '../core/constants.dart';
@@ -246,6 +247,9 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
   String _type = 'finished_goods';
   bool _isActive = true;
   bool _isSaving = false;
+  final _picker = ImagePicker();
+  String? _photoUrl;
+  bool _photoBusy = false;
 
   @override
   void initState() {
@@ -264,6 +268,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     _supplierId = widget.product?.supplierId;
     _type = widget.product?.type ?? 'finished_goods';
     _isActive = widget.product?.isActive ?? true;
+    _photoUrl = widget.product?.image;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<ProductProvider>().loadMasterData();
     });
@@ -454,6 +459,59 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: 12),
+                    if (isEdit) ...[
+                      const Text('Foto Produk', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySurface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: _photoUrl != null && _photoUrl!.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      _photoUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: AppColors.primary, size: 24),
+                                    ),
+                                  )
+                                : const Icon(Icons.photo_camera_outlined, color: AppColors.primary, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: _photoBusy ? null : _pickPhoto,
+                                  icon: const Icon(Icons.photo_library_rounded, size: 16),
+                                  label: const Text('Pilih Foto', style: TextStyle(fontSize: 12)),
+                                ),
+                                const SizedBox(height: 6),
+                                OutlinedButton.icon(
+                                  onPressed: _photoBusy || _photoUrl == null || _photoUrl!.isEmpty
+                                      ? null
+                                      : _generateLabelPhoto,
+                                  icon: const Icon(Icons.text_fields_rounded, size: 16),
+                                  label: const Text('Generate Berteks', style: TextStyle(fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_photoBusy) ...[
+                        const SizedBox(height: 8),
+                        const LinearProgressIndicator(minHeight: 3),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Produk Aktif', style: TextStyle(fontSize: 14)),
@@ -527,6 +585,95 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
         msg = errors.values.expand((v) => v is List ? v : [v]).join('\n');
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.danger));
+    }
+  }
+
+  Future<void> _pickPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, size: 20),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded, size: 20),
+              title: const Text('Ambil dengan Kamera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    try {
+      final picked = await _picker.pickImage(source: source, maxWidth: 1600, maxHeight: 1600, imageQuality: 85);
+      if (picked == null) return;
+      await _uploadPhoto(picked);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memilih foto: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadPhoto(XFile file) async {
+    setState(() => _photoBusy = true);
+
+    final api = ApiService();
+    final res = await api.postMultipart(
+      '${ApiConstants.products}/${widget.product!.id}/photo',
+      fileField: 'photo',
+      filePath: file.path,
+    );
+
+    if (!mounted) return;
+    setState(() => _photoBusy = false);
+
+    if (res['success'] == true) {
+      final data = res['data'];
+      final product = data is Map ? data['data'] : null;
+      setState(() => _photoUrl = product is Map ? (product['image'] ?? product['photo']) : _photoUrl);
+      if (mounted) {
+        context.read<ProductProvider>().loadProducts(refresh: true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto produk diupload')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res['message'] ?? 'Gagal upload foto'), backgroundColor: AppColors.danger),
+      );
+    }
+  }
+
+  Future<void> _generateLabelPhoto() async {
+    setState(() => _photoBusy = true);
+
+    final api = ApiService();
+    final res = await api.post('${ApiConstants.products}/${widget.product!.id}/generate-label');
+
+    if (!mounted) return;
+    setState(() => _photoBusy = false);
+
+    if (res['success'] == true) {
+      final data = res['data'];
+      final product = data is Map ? data['data'] : null;
+      setState(() => _photoUrl = product is Map ? (product['image'] ?? _photoUrl) : _photoUrl);
+      if (mounted) {
+        context.read<ProductProvider>().loadProducts(refresh: true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto berteks berhasil digenerate')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res['message'] ?? 'Gagal generate foto'), backgroundColor: AppColors.danger),
+      );
     }
   }
 }

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("POSQUPRO")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b6963effdfac7abc9ae10bc760aeb36fc9f2cdf3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+864fb77e2f38e8d5103c183502cefbbb8ff1a53b")]
 [assembly: System.Reflection.AssemblyProductAttribute("POSQUPRO Desktop")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PosquproDesktop")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

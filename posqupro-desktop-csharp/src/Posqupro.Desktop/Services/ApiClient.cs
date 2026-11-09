@@ -61,6 +61,38 @@ public sealed class ApiClient(AppSettingsStore settings)
     public Task<ApiResult> DeleteAsync(string path) =>
         SendAsync(HttpMethod.Delete, $"api/v1/{path.TrimStart('/')}", null);
 
+    public async Task<ApiResult> PostMultipartAsync(string path, string fileField, string filePath)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.NormalizedBaseUrl}/api/v1/{path.TrimStart('/')}");
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            if (!string.IsNullOrWhiteSpace(_settings.Value.Token))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.Value.Token);
+            }
+
+            var fileContent = new ByteArrayContent(await System.IO.File.ReadAllBytesAsync(filePath));
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(
+                System.IO.Path.GetExtension(filePath).ToLowerInvariant() switch
+                {
+                    ".png" => "image/png",
+                    ".webp" => "image/webp",
+                    _ => "image/jpeg",
+                });
+
+            using var form = new MultipartFormDataContent();
+            form.Add(fileContent, fileField, System.IO.Path.GetFileName(filePath));
+            request.Content = form;
+
+            return await ExecuteAsync(request, TimeSpan.FromSeconds(60));
+        }
+        catch (Exception exception)
+        {
+            return ApiResult.Fail(exception.Message);
+        }
+    }
+
     public async Task<List<JsonElement>> GetAllPagesAsync(string path, int maxPages = 40, string? extraQuery = null)
     {
         var rows = new List<JsonElement>();
@@ -116,7 +148,19 @@ public sealed class ApiClient(AppSettingsStore settings)
                     "application/json");
             }
 
-            using var cancellation = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(40));
+            return await ExecuteAsync(request, timeout ?? TimeSpan.FromSeconds(40));
+        }
+        catch (Exception exception)
+        {
+            return ApiResult.Fail(exception.Message);
+        }
+    }
+
+    private async Task<ApiResult> ExecuteAsync(HttpRequestMessage request, TimeSpan timeout)
+    {
+        try
+        {
+            using var cancellation = new CancellationTokenSource(timeout);
             using var response = await _http.SendAsync(request, cancellation.Token);
             var body = await response.Content.ReadAsStringAsync(cancellation.Token);
             var data = Parse(body);

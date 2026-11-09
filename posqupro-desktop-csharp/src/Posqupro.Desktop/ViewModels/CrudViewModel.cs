@@ -62,6 +62,7 @@ public sealed class CrudDefinition
     public string[] SearchColumns { get; init; } = [];
     public bool CanCreate { get; init; } = true;
     public bool CanDelete { get; init; } = true;
+    public bool HasPhotoActions { get; init; }
     public Func<Dictionary<string, object?>, Dictionary<string, object?>>? PayloadTransform { get; init; }
     public Func<CrudViewModel, Dictionary<string, object?>, Task>? BeforeSave { get; init; }
 }
@@ -103,6 +104,8 @@ public sealed class CrudViewModel : ViewModelBase
         EditCommand = new RelayCommand(BeginEdit, () => _selected is not null);
         CancelCommand = new RelayCommand(CancelEdit);
         RefreshCommand = new AsyncRelayCommand(LoadAsync);
+        UploadPhotoCommand = new AsyncRelayCommand(UploadPhotoAsync, () => Editing is { Id: > 0 });
+        GeneratePhotoCommand = new AsyncRelayCommand(GeneratePhotoAsync, () => Editing is { Id: > 0 } && HasPhotoValue);
         _ = LoadAsync();
     }
 
@@ -114,10 +117,40 @@ public sealed class CrudViewModel : ViewModelBase
     public ICommand EditCommand { get; }
     public ICommand CancelCommand { get; }
     public ICommand RefreshCommand { get; }
+    public ICommand UploadPhotoCommand { get; }
+    public ICommand GeneratePhotoCommand { get; }
 
     public string Title => Definition.Title;
     public bool CanCreate => Definition.CanCreate;
     public bool CanDelete => Definition.CanDelete;
+    public bool HasPhotoActions => Definition.HasPhotoActions;
+    public bool CanEditPhoto => HasPhotoActions && Editing is { Id: > 0 };
+
+    private bool HasPhotoValue =>
+        Editing is not null &&
+        !string.IsNullOrWhiteSpace(Editing.Values.GetValueOrDefault("image") as string ??
+                                  Editing.Values.GetValueOrDefault("photo") as string);
+
+    public string? PhotoPreviewUrl
+    {
+        get
+        {
+            var raw = Editing?.Values.GetValueOrDefault("image") as string
+                      ?? Editing?.Values.GetValueOrDefault("photo") as string;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return null;
+            }
+
+            if (raw.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                return raw;
+            }
+
+            var baseUrl = AppServices.Settings.NormalizedBaseUrl.TrimEnd('/');
+            return raw.StartsWith('/') ? baseUrl + raw : baseUrl + "/storage/" + raw;
+        }
+    }
 
     public string Search
     {
@@ -145,6 +178,10 @@ public sealed class CrudViewModel : ViewModelBase
             if (SetProperty(ref _editing, value))
             {
                 EditingVersion++;
+                OnPropertyChanged(nameof(PhotoPreviewUrl));
+                OnPropertyChanged(nameof(CanEditPhoto));
+                (UploadPhotoCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (GeneratePhotoCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -220,6 +257,7 @@ public sealed class CrudViewModel : ViewModelBase
         }
 
         clone.Values["id"] = Selected.Id;
+        clone.Values["server_id"] = Selected.Values.GetValueOrDefault("server_id");
         Editing = clone;
         IsEditing = true;
     }
@@ -376,6 +414,127 @@ public sealed class CrudViewModel : ViewModelBase
         FieldKind.TextChoice => value?.ToString()?.Trim(),
         _ => value?.ToString()?.Trim(),
     };
+
+    private async Task UploadPhotoAsync()
+    {
+        if (Editing is null || Editing.Id == 0)
+        {
+            return;
+        }
+
+        var serverId = Editing.Values.GetValueOrDefault("server_id");
+        if (serverId is null || Convert.ToInt64(serverId, CultureInfo.InvariantCulture) <= 0)
+        {
+            Ui.Error("Produk belum tersinkronisasi ke server. Jalankan sinkronisasi dulu, lalu ulangi.");
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Gambar (*.jpg;*.jpeg;*.png;*.webp)|*.jpg;*.jpeg;*.png;*.webp",
+        };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        StatusMessage = "Mengupload foto...";
+        var result = await AppServices.Api.PostMultipartAsync(
+            $"products/{Convert.ToInt64(serverId, CultureInfo.InvariantCulture)}/photo",
+            "photo",
+            dialog.FileName);
+
+        if (!result.Success)
+        {
+            Ui.Error(result.Message);
+            StatusMessage = "Upload foto gagal.";
+            return;
+        }
+
+        await ApplyPhotoResultAsync(result.Data, "Foto produk berhasil diupload.");
+    }
+
+    private async Task GeneratePhotoAsync()
+    {
+        if (Editing is null || Editing.Id == 0)
+        {
+            return;
+        }
+
+        var serverId = Editing.Values.GetValueOrDefault("server_id");
+        if (serverId is null || Convert.ToInt64(serverId, CultureInfo.InvariantCulture) <= 0)
+        {
+            Ui.Error("Produk belum tersinkronisasi ke server. Jalankan sinkronisasi dulu, lalu ulangi.");
+            return;
+        }
+
+        StatusMessage = "Menggenerate foto berteks...";
+        var result = await AppServices.Api.PostAsync(
+            $"products/{Convert.ToInt64(serverId, CultureInfo.InvariantCulture)}/generate-label",
+            new { });
+
+        if (!result.Success)
+        {
+            Ui.Error(result.Message);
+            StatusMessage = "Generate foto gagal.";
+            return;
+        }
+
+        await ApplyPhotoResultAsync(result.Data, "Foto berteks berhasil digenerate.");
+    }
+
+    private async Task ApplyPhotoResultAsync(JsonElement data, string successMessage)
+    {
+        if (Editing is null)
+        {
+            return;
+        }
+
+        var payload = data.ValueKind == JsonValueKind.Object && data.TryGetProperty("data", out var inner)
+            ? inner
+            : data;
+        var image = ReadString(payload, "image");
+        var photo = ReadString(payload, "photo");
+
+        var updates = new Dictionary<string, object?>();
+        if (!string.IsNullOrWhiteSpace(image))
+        {
+            updates["image"] = image;
+        }
+
+        if (updates.Count > 0)
+        {
+            await AppServices.Db.UpdateAsync("products", Editing.Id, updates);
+        }
+
+        if (Editing is null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(image))
+        {
+            Editing.Values["image"] = image;
+        }
+
+        if (!string.IsNullOrWhiteSpace(photo))
+        {
+            Editing.Values["photo"] = photo;
+        }
+
+        OnPropertyChanged(nameof(PhotoPreviewUrl));
+        (GeneratePhotoCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        StatusMessage = successMessage;
+        Ui.Info(successMessage);
+        await LoadAsync();
+    }
+
+    private static string? ReadString(JsonElement element, string property) =>
+        element.ValueKind == JsonValueKind.Object &&
+        element.TryGetProperty(property, out var value) &&
+        value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 }
 
 /// <summary>Small indirection to keep view models testable without static access everywhere.</summary>

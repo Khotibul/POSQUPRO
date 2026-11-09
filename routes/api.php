@@ -131,6 +131,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('unit-quantities', UnitQuantityController::class);
     Route::apiResource('taxes', TaxController::class);
     Route::apiResource('products', ProductController::class);
+    Route::post('products/{product}/photo', [ProductController::class, 'uploadPhoto']);
+    Route::post('products/{product}/generate-label', [ProductController::class, 'generateLabelPhoto']);
     Route::apiResource('transactions', TransactionController::class);
     Route::apiResource('payments', PaymentController::class);
     Route::apiResource('expenses', ExpenseController::class);

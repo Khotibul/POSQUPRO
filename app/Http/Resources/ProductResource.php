@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ProductResource extends JsonResource
 {
@@ -37,13 +38,34 @@ class ProductResource extends JsonResource
             'stock' => $this->stock,
             'min_stock' => $this->min_stock,
             'is_low_stock' => $this->stock <= $this->min_stock,
-            'image' => $this->image,
-            'photo' => $this->photo,
+            'image' => $this->photoUrl($this->image),
+            'photo' => $this->photoUrl($this->photo),
             'description' => $this->description,
             'is_active' => $this->is_active,
             'active' => $this->active,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /**
+     * Nilai photo/image disimpan relatif (/storage/...); API mengembalikan
+     * URL absolut agar bisa langsung dipakai Image.network di mobile.
+     */
+    private function photoUrl(?string $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $value)) {
+            return $value;
+        }
+
+        if (str_starts_with($value, '/')) {
+            return url($value);
+        }
+
+        return Storage::disk('public')->url($value);
     }
 }

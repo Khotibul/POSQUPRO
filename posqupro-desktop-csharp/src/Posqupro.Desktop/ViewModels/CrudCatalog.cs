@@ -58,6 +58,7 @@ public static class CrudCatalog
         ],
         SearchColumns = ["p.name", "p.sku", "p.barcode"],
         OrderBy = " ORDER BY p.name",
+        HasPhotoActions = true,
         BeforeSave = async (_, values) =>
         {
             values["price"] = values.GetValueOrDefault("selling_price");

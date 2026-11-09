@@ -113,6 +113,85 @@ public partial class CrudView : UserControl
                 FieldsPanel.Children.Add(control);
             }
         }
+
+        if (_viewModel.CanEditPhoto)
+        {
+            AddPhotoSection();
+        }
+    }
+
+    private void AddPhotoSection()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        FieldsPanel.Children.Add(new TextBlock
+        {
+            Text = "Foto Produk",
+            Style = (Style)Application.Current.FindResource("CardTitle"),
+            Margin = new Thickness(0, 8, 0, 6),
+        });
+
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var image = new Image
+        {
+            Width = 72,
+            Height = 72,
+            Stretch = Stretch.UniformToFill,
+        };
+        image.SetBinding(Image.SourceProperty, new Binding(nameof(CrudViewModel.PhotoPreviewUrl)));
+
+        var frame = new Border
+        {
+            Child = image,
+            Width = 72,
+            Height = 72,
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
+            BorderBrush = (Brush)Application.Current.FindResource("Hairline"),
+            Background = (Brush)Application.Current.FindResource("Pebble"),
+        };
+        System.Windows.Controls.Grid.SetColumn(frame, 0);
+
+        var buttons = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
+
+        var uploadButton = new Button
+        {
+            Content = "Pilih Foto",
+            Style = (Style)Application.Current.FindResource("GhostButton"),
+            Margin = new Thickness(0, 0, 0, 6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        uploadButton.SetBinding(Button.CommandProperty, new Binding(nameof(CrudViewModel.UploadPhotoCommand)));
+
+        var generateButton = new Button
+        {
+            Content = "Generate Foto Berteks",
+            Style = (Style)Application.Current.FindResource("GhostButton"),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        generateButton.SetBinding(Button.CommandProperty, new Binding(nameof(CrudViewModel.GeneratePhotoCommand)));
+
+        buttons.Children.Add(uploadButton);
+        buttons.Children.Add(generateButton);
+        System.Windows.Controls.Grid.SetColumn(buttons, 1);
+
+        grid.Children.Add(frame);
+        grid.Children.Add(buttons);
+        FieldsPanel.Children.Add(grid);
+
+        FieldsPanel.Children.Add(new TextBlock
+        {
+            Text = "Generate menambahkan banner nama produk di bawah foto; foto asli tetap tersimpan.",
+            Style = (Style)Application.Current.FindResource("Caption"),
+            Margin = new Thickness(0, 4, 0, 4),
+            TextWrapping = TextWrapping.Wrap,
+        });
     }
 
     private FrameworkElement? CreateFieldControl(FieldDef field, CrudItem editing)

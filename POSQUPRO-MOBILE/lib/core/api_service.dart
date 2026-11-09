@@ -72,6 +72,23 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    required String fileField,
+    required String filePath,
+    Map<String, String>? fields,
+  }) async {
+    final headers = await _headers();
+    headers.remove('Content-Type'); // http menambahkan boundary sendiri
+    final request = http.MultipartRequest('POST', Uri.parse('$_baseUrl$endpoint'))
+      ..headers.addAll(headers);
+    if (fields != null) request.fields.addAll(fields);
+    request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response);
+  }
+
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = jsonDecode(response.body);
 
