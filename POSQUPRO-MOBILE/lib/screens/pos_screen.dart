@@ -6,6 +6,8 @@ import '../providers/product_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/customer_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/customer.dart';
 import '../models/product.dart';
 
@@ -20,6 +22,7 @@ class _PosScreenState extends State<PosScreen> {
   final _searchController = TextEditingController();
   int? _selectedCategoryId;
   bool _restoredPark = false;
+  int? _restoredCustomerId;
 
   @override
   void initState() {
@@ -28,6 +31,7 @@ class _PosScreenState extends State<PosScreen> {
       context.read<ProductProvider>().loadProducts(refresh: true);
       context.read<ProductProvider>().loadCategories();
       context.read<CustomerProvider>().loadCustomers(refresh: true);
+      context.read<SettingsProvider>().loadPublicSettings();
       await _maybeRestoreParked();
     });
   }
@@ -41,6 +45,7 @@ class _PosScreenState extends State<PosScreen> {
     final products = context.read<ProductProvider>();
     final cart = context.read<CartProvider>();
     cart.clear();
+    var isFirst = true;
     for (final raw in items) {
       if (raw is! Map) continue;
       final productId = raw['product_id'];
@@ -59,8 +64,22 @@ class _PosScreenState extends State<PosScreen> {
       final price = (raw['unit_price'] as num?)?.toDouble() ?? product.sellingPrice;
       cart.updateQuantity(product.id, qty);
       cart.updatePrice(product.id, price);
-      final disc = (raw['discount'] as num?)?.toDouble();
-      if (disc != null && disc > 0) cart.updateDiscount(product.id, disc);
+      var disc = (raw['discount'] as num?)?.toDouble() ?? 0;
+      // Diskon transaksi level (dibuat web) dialihkan ke baris pertama
+      // agar total tetap sama dan tidak terhitung ganda.
+      if (isFirst) {
+        disc += (args['discount'] as num?)?.toDouble() ?? 0;
+      }
+      isFirst = false;
+      if (disc > 0) cart.updateDiscount(product.id, disc);
+    }
+    _restoredCustomerId = (args['customer_id'] as num?)?.toInt();
+    // Single-use ala Java: park dihapus setelah dipulihkan
+    final parkId = args['parkId'];
+    if (parkId != null) {
+      try {
+        await ApiService().delete('/v1/parked-transactions/$parkId');
+      } catch (_) {}
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -334,6 +353,7 @@ class _PosScreenState extends State<PosScreen> {
   void _openCheckout(BuildContext context) {
     final cart = context.read<CartProvider>();
     final customers = context.read<CustomerProvider>().customers;
+    if (_restoredCustomerId != null) cart.setCustomerId(_restoredCustomerId);
 
     showModalBottomSheet(
       context: context,
@@ -346,19 +366,38 @@ class _PosScreenState extends State<PosScreen> {
   Future<void> _parkCart(BuildContext context) async {
     final cart = context.read<CartProvider>();
     if (cart.items.isEmpty) return;
+    final customers = context.read<CustomerProvider>().customers;
+    int? parkCustomerId;
     final labelCtrl = TextEditingController(text: 'Keranjang ${DateTime.now().ddMMHHmm()}');
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Tahan Transaksi'),
-        content: TextField(
-          controller: labelCtrl,
-          decoration: const InputDecoration(labelText: 'Nama simpanan'),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Simpan Keranjang'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelCtrl,
+                decoration: const InputDecoration(labelText: 'Nama simpanan'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int?>(
+                initialValue: parkCustomerId,
+                decoration: const InputDecoration(labelText: 'Pelanggan'),
+                items: [
+                  const DropdownMenuItem<int?>(value: null, child: Text('Pelanggan Umum')),
+                  ...customers.map((c) => DropdownMenuItem<int?>(value: c.id, child: Text(c.name))),
+                ],
+                onChanged: (v) => setDialogState(() => parkCustomerId = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Simpan')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Simpan')),
-        ],
       ),
     );
     if (ok != true || !context.mounted) return;
@@ -366,6 +405,7 @@ class _PosScreenState extends State<PosScreen> {
     try {
       final api = ApiService();
       final body = {
+        'customer_id': parkCustomerId,
         'items': cart.items
             .map((i) => {
                   'product_id': i.product.id,
@@ -374,7 +414,9 @@ class _PosScreenState extends State<PosScreen> {
                   'discount': i.discount,
                 })
             .toList(),
-        'discount': cart.totalDiscount,
+        // Diskon sudah per-item di items; level transaksi 0 agar tidak dobel
+        'discount': 0,
+        'tax_amount': 0,
         'notes': labelCtrl.text.trim(),
       };
       final res = await api.post('/v1/parked-transactions', body: body);
@@ -412,6 +454,192 @@ class _CartEditorSheet extends StatefulWidget {
 }
 
 class _CartEditorSheetState extends State<_CartEditorSheet> {
+  /// Setelah harga diedit dan berbeda dari harga master, admin ditawari
+  /// update harga produk (paralel Java "Update Harga Produk" dialog).
+  void _onPriceChanged(CartItem item, String raw) {
+    final cart = context.read<CartProvider>();
+    final newPrice = double.tryParse(raw) ?? item.unitPrice;
+    cart.updatePrice(item.product.id, newPrice);
+    if (newPrice <= 0 || newPrice == item.product.sellingPrice) return;
+
+    final auth = context.read<AuthProvider>();
+    final role = (auth.user?.role ?? '').toLowerCase();
+    const adminRoles = ['admin', 'owner', 'super admin', 'superadmin', 'administrator'];
+    if (!adminRoles.contains(role)) return;
+
+    final settings = context.read<SettingsProvider>();
+    if (settings.getSetting('pos.editPrice.autoUpdate.enabled', defaultValue: 'true') == 'false') return;
+
+    _showUpdatePriceDialog(item.product, newPrice);
+  }
+
+  Future<void> _showUpdatePriceDialog(Product product, double typedPrice) async {
+    var updateCost = false;
+    var cost = product.costPrice;
+    var updateRetail = true;
+    var retail = typedPrice;
+    var updateWholesale = false;
+    var wholesale = product.wholesalePrice;
+    var minWholesale = product.minWholesale;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Update Harga Produk'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(
+                  'Harga di keranjang: ${formatCurrency(typedPrice)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 12),
+                _priceSection(
+                  ctx: ctx,
+                  setDialogState: setDialogState,
+                  label: 'Harga Modal',
+                  checked: updateCost,
+                  onChecked: (v) => setDialogState(() => updateCost = v),
+                  value: cost,
+                  onValue: (v) => setDialogState(() => cost = v),
+                ),
+                _priceSection(
+                  ctx: ctx,
+                  setDialogState: setDialogState,
+                  label: 'Harga Ecer',
+                  checked: updateRetail,
+                  onChecked: (v) => setDialogState(() => updateRetail = v),
+                  value: retail,
+                  onValue: (v) => setDialogState(() => retail = v),
+                ),
+                _priceSection(
+                  ctx: ctx,
+                  setDialogState: setDialogState,
+                  label: 'Harga Grosir',
+                  checked: updateWholesale,
+                  onChecked: (v) => setDialogState(() => updateWholesale = v),
+                  value: wholesale,
+                  onValue: (v) => setDialogState(() => wholesale = v),
+                  extra: updateWholesale
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: TextFormField(
+                            initialValue: minWholesale > 0 ? '$minWholesale' : '',
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Min. Qty Grosir', isDense: true),
+                            onFieldSubmitted: (v) => setDialogState(() => minWholesale = int.tryParse(v) ?? 0),
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+            TextButton(
+              onPressed: () {
+                if (!updateCost && !updateRetail && !updateWholesale) return;
+                if (updateCost && cost <= 0) return;
+                if (updateRetail && retail <= 0) return;
+                if (updateWholesale && wholesale <= 0) return;
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Update Harga'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+
+    try {
+      final api = ApiService();
+      final res = await api.put('/v1/products/${product.id}', body: {
+        'update_cost': updateCost,
+        'cost_price': cost,
+        'update_retail': updateRetail,
+        'selling_price': retail,
+        'update_wholesale': updateWholesale,
+        'wholesale_price': wholesale,
+        'min_wholesale': minWholesale,
+      });
+      if (!mounted) return;
+      if (res['success'] == true) {
+        context.read<ProductProvider>().loadProducts(refresh: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Harga produk diupdate'), backgroundColor: AppColors.success),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res['message'] ?? 'Gagal update harga'), backgroundColor: AppColors.danger),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal update harga: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
+  Widget _priceSection({
+    required BuildContext ctx,
+    required StateSetter setDialogState,
+    required String label,
+    required bool checked,
+    required ValueChanged<bool> onChecked,
+    required double value,
+    required ValueChanged<double> onValue,
+    Widget? extra,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Checkbox(
+                value: checked,
+                onChanged: (v) => onChecked(v ?? false),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)),
+                child: const Text('UPDATE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.blue)),
+              ),
+            ],
+          ),
+          if (checked)
+            TextFormField(
+              initialValue: value.toStringAsFixed(0),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(prefixText: 'Rp ', isDense: true),
+              onFieldSubmitted: (v) => onValue(double.tryParse(v) ?? 0),
+            ),
+          if (extra != null && checked) extra,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
@@ -509,7 +737,7 @@ class _CartEditorSheetState extends State<_CartEditorSheet> {
                                 isDense: true,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                               ),
-                              onFieldSubmitted: (v) => cart.updatePrice(item.product.id, double.tryParse(v) ?? item.unitPrice),
+                              onFieldSubmitted: (v) => _onPriceChanged(item, v),
                             ),
                           ),
                         ],
@@ -589,6 +817,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   @override
   void initState() {
     super.initState();
+    _selectedCustomerId = widget.cart.customerId;
     _paid = widget.cart.total;
     _paidController.text = widget.cart.total.toStringAsFixed(0);
   }
@@ -808,7 +1037,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       type: 'sell',
       customerId: _selectedCustomerId,
       items: items,
-      discount: cart.totalDiscount,
+      // Diskon sudah per-item di items; level transaksi 0 agar tidak dobel hitung
+      discount: 0,
       notes: _noteController.text.isNotEmpty ? _noteController.text : null,
       payment: {
         'method': _paymentMethod,

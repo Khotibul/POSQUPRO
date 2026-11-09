@@ -172,7 +172,7 @@
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock Text="Rp" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,4,0" />
                                                         <TextBox Width="92" Padding="6,4"
-                                                                 Text="{Binding PriceText, UpdateSourceTrigger=PropertyChanged}"
+                                                                 Text="{Binding PriceText}"
                                                                  TextAlignment="Right" ToolTip="Harga satuan"
                                                                  IsEnabled="{Binding DataContext.CanEditPrice, RelativeSource={RelativeSource AncestorType=UserControl}}" />
                                                         <Button Content="✕" Width="28" Margin="6,0,0,0" Padding="0"

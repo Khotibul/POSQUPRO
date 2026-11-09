@@ -659,15 +659,120 @@ public sealed class PosViewModel : ViewModelBase
 
     private void LineOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (sender is not CartLine line)
+        {
+            return;
+        }
+
         if (e.PropertyName is nameof(CartLine.Subtotal) or nameof(CartLine.Quantity) or nameof(CartLine.UnitPrice))
         {
-            if (sender is CartLine line && line.Quantity <= 0 && Cart.Contains(line))
+            if (line.Quantity <= 0 && Cart.Contains(line))
             {
                 RemoveLine(line);
                 return;
             }
 
             Recalculate();
+
+            if (e.PropertyName == nameof(CartLine.UnitPrice) &&
+                line.UnitPrice > 0 &&
+                line.UnitPrice != line.Product.EffectivePrice &&
+                CanEditPrice)
+            {
+                _ = OfferPriceUpdateAsync(line);
+            }
+        }
+    }
+
+    private bool _priceUpdateOpen;
+
+    /// <summary>
+    /// Setelah harga baris diedit dan berbeda dari harga master, admin ditawari
+    /// dialog Update Harga Produk (paralel Java desktop) yang menulis ke produk.
+    /// </summary>
+    private async Task OfferPriceUpdateAsync(CartLine line)
+    {
+        if (_priceUpdateOpen)
+        {
+            return;
+        }
+
+        var role = (AppServices.Settings.Value.UserRole ?? "").ToUpperInvariant();
+        if (role is not ("ADMIN" or "OWNER" or "SUPER ADMIN" or "SUPERADMIN"))
+        {
+            return;
+        }
+
+        try
+        {
+            var map = await AppServices.Queries.GetSettingMapAsync();
+            if (map.GetValueOrDefault("pos.editPrice.autoUpdate.enabled", "true") == "false")
+            {
+                return;
+            }
+        }
+        catch
+        {
+            return;
+        }
+
+        var product = line.Product;
+        _priceUpdateOpen = true;
+        try
+        {
+            var result = Views.Dialogs.UpdatePriceWindow.Ask(
+                System.Windows.Application.Current.MainWindow,
+                $"{product.Name} ({product.Sku})",
+                line.UnitPrice,
+                product.CostPrice,
+                product.WholesalePrice,
+                product.MinWholesale);
+            if (result is null)
+            {
+                return;
+            }
+
+            var updates = new Dictionary<string, object?> { ["updated_at"] = DateTime.Now.ToString("o") };
+            var payload = new Dictionary<string, object?>();
+
+            if (result.UpdateCost)
+            {
+                updates["cost_price"] = result.Cost;
+                payload["cost_price"] = result.Cost;
+                product.CostPrice = result.Cost;
+            }
+
+            if (result.UpdateRetail)
+            {
+                updates["selling_price"] = result.Retail;
+                updates["price"] = result.Retail;
+                payload["selling_price"] = result.Retail;
+                product.SellingPrice = result.Retail;
+                product.Price = result.Retail;
+            }
+
+            if (result.UpdateWholesale)
+            {
+                updates["wholesale_price"] = result.Wholesale;
+                updates["min_wholesale"] = result.MinWholesale;
+                payload["wholesale_price"] = result.Wholesale;
+                payload["min_wholesale"] = result.MinWholesale;
+                product.WholesalePrice = result.Wholesale;
+                product.MinWholesale = result.MinWholesale;
+            }
+
+            await AppServices.Db.UpdateAsync("products", product.Id, updates);
+            await AppServices.Db.EnqueueAsync("product", "update", product.Id, payload);
+            StatusMessage = $"Harga {product.Name} diupdate.";
+            Ui.Info($"Harga {product.Name} berhasil diupdate.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error($"Gagal update harga: {ex.Message}");
+        }
+        finally
+        {
+            _priceUpdateOpen = false;
         }
     }
 

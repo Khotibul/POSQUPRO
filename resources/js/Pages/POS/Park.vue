@@ -20,10 +20,16 @@ onMounted(() => {
 
 async function savePark() {
   if (!cart.value.length) { error('Keranjang kosong'); return }
+  const dType = localStorage.getItem('pos_discount_type') || 'amount'
+  const dRaw = Number(localStorage.getItem('pos_discount') || 0)
+  const sub = cart.value.reduce((s, i) => s + i.qty * i.price, 0)
+  const dVal = dType === 'percent' ? sub * dRaw / 100 : dRaw
   try {
     await router.post('/pos/park', {
       customer_id: customerId.value||null,
-      items: cart.value.map(i=>({ product_id:i.id, qty:i.qty, price:i.price, quantity:i.qty, unit_price:i.price })),
+      items: cart.value.map(i=>({ product_id:i.id, product_name:i.name, sku:i.sku, qty:i.qty, price:i.price, quantity:i.qty, unit_price:i.price, discount:0 })),
+      discount: dVal,
+      tax_amount: 0,
       notes: notes.value,
     }, { onSuccess: () => {
       localStorage.removeItem('pos_cart'); cart.value=[]; notes.value=''; success('Disimpan ke Park'); router.visit('/pos')
@@ -32,11 +38,25 @@ async function savePark() {
 }
 
 function restorePark(p) {
-  // ParkedTransaction items adalah array dengan product_id, qty, price
-  const items = p.items.map(it => ({ id: it.product_id, name: it.product_name || 'Produk', sku: it.sku || '', price: Number(it.price), qty: Number(it.qty), maxQty: 999 }))
+  // Terima dua bentuk item (qty/unit_price normalisasi service, atau price/qty lama)
+  const items = (p.items || []).map(it => ({
+    id: it.product_id,
+    name: it.product_name || 'Produk',
+    sku: it.sku || '',
+    price: Number(it.unit_price ?? it.price ?? 0),
+    qty: Number(it.quantity ?? it.qty ?? 1),
+    maxQty: 999,
+  }))
   localStorage.setItem('pos_cart', JSON.stringify(items))
-  if(p.customer_id) localStorage.setItem('pos_customer', String(p.customer_id))
-  success('Dipulihkan ke POS'); router.visit('/pos')
+  if (p.customer_id) localStorage.setItem('pos_customer', String(p.customer_id))
+  else localStorage.removeItem('pos_customer')
+  localStorage.setItem('pos_discount', String(Number(p.discount || 0)))
+  localStorage.setItem('pos_discount_type', 'amount')
+  // Single-use ala Java: park dihapus setelah dipulihkan
+  router.delete(`/pos/park/${p.id}`, {
+    onSuccess: () => { success('Dipulihkan ke POS'); router.visit('/pos') },
+    onError: () => { success('Dipulihkan ke POS'); router.visit('/pos') },
+  })
 }
 
 async function removePark(id) {

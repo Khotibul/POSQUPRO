@@ -159,6 +159,8 @@ public class Product
     public decimal CostPrice { get; set; }
     public decimal SellingPrice { get; set; }
     public decimal Price { get; set; }
+    public decimal WholesalePrice { get; set; }
+    public int MinWholesale { get; set; }
     public decimal Stock { get; set; }
     public decimal MinStock { get; set; } = 5;
     public bool IsActive { get; set; } = true;

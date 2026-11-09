@@ -50,6 +50,7 @@ class _ParkedScreenState extends State<ParkedScreen> {
       'discount': item['discount'],
       'taxAmount': item['tax_amount'],
       'notes': item['notes'],
+      'customer_id': item['customer_id'],
     });
   }
 

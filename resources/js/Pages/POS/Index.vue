@@ -19,7 +19,18 @@ const props = defineProps({
   customers: { type: Array, default: () => [] },
   categories: { type: Array, default: () => [] },
   filters: { type: Object, default: () => ({}) },
+  posSettings: { type: Object, default: () => ({}) },
 })
+
+// Gate edit harga ala Java: custom price ON, atau (admin AND auto update)
+const isAdmin = computed(() => {
+  const roles = page.props.auth?.user?.roles || []
+  return roles.some(r => ['admin', 'owner', 'super admin', 'superadmin'].includes(String(r).toLowerCase()))
+})
+const canEditPrice = computed(() =>
+  props.posSettings.custom_price_enabled === true ||
+  (isAdmin.value && props.posSettings.auto_update_price !== false)
+)
 
 const search = ref(props.filters.search || '')
 const selectedCategory = ref(props.filters.category || '')
@@ -52,7 +63,14 @@ function addToCart(p) {
     if (exist.qty >= stock) { error('Stok tidak cukup'); return }
     exist.qty++
   } else {
-    cart.value.push({ id: p.id, name: p.name, sku: p.sku, price: Number(p.selling_price || p.price), qty: 1, maxQty: stock })
+    const sellPrice = Number(p.selling_price || p.price)
+    cart.value.push({
+      id: p.id, name: p.name, sku: p.sku, price: sellPrice, qty: 1, maxQty: stock,
+      basePrice: sellPrice,
+      cost: Number(p.cost_price ?? p.cost ?? 0),
+      wholesale: Number(p.wholesale_price ?? 0),
+      minWholesale: Number(p.min_wholesale ?? 0),
+    })
   }
 }
 function updateQty(item, d) {
@@ -64,10 +82,90 @@ function updateQty(item, d) {
 function removeItem(item) { cart.value = cart.value.filter(i => i !== item) }
 function clearCart() { if (cart.value.length && confirm('Kosongkan keranjang?')) { cart.value = []; customerId.value=''; discount.value=0 } }
 
-function goPark() {
-  if (!cart.value.length) { error('Keranjang kosong'); return }
-  router.visit('/pos/park')
+// --- Edit harga + update harga produk master (paralel Java) ---
+function isCustom(item) {
+  return Number(item.price) !== Number(item.basePrice ?? item.price)
 }
+
+function onPriceChange(item) {
+  let v = Number(item.price)
+  if (isNaN(v) || v < 0) v = Number(item.basePrice ?? 0)
+  item.price = v
+  if (!canEditPrice.value) { item.price = Number(item.basePrice ?? v); return }
+  if (v === 0 || v === Number(item.basePrice ?? v)) return // kembali ke harga normal → tidak perlu dialog
+  if (isAdmin.value && props.posSettings.auto_update_price !== false) openUpdatePrice(item)
+}
+
+const showUpdatePrice = ref(false)
+const upProduct = ref(null)
+const upForm = ref({ updateCost: false, cost: 0, updateRetail: true, retail: 0, updateWholesale: false, wholesale: 0, minWholesale: 0 })
+
+function openUpdatePrice(item) {
+  upProduct.value = item
+  upForm.value = {
+    updateCost: false,
+    cost: Number(item.cost) || 0,
+    updateRetail: true,
+    retail: Number(item.price),
+    updateWholesale: false,
+    wholesale: Number(item.wholesale) || 0,
+    minWholesale: Number(item.minWholesale) || 0,
+  }
+  showUpdatePrice.value = true
+}
+
+async function confirmUpdatePrice() {
+  const f = upForm.value
+  if (!f.updateCost && !f.updateRetail && !f.updateWholesale) { error('Centang minimal satu harga untuk diupdate'); return }
+  if (f.updateCost && !(Number(f.cost) > 0)) { error('Harga modal harus lebih dari 0'); return }
+  if (f.updateRetail && !(Number(f.retail) > 0)) { error('Harga ecer harus lebih dari 0'); return }
+  if (f.updateWholesale && !(Number(f.wholesale) > 0)) { error('Harga grosir harus lebih dari 0'); return }
+  await router.put('/pos/product-price/' + upProduct.value.id, {
+    update_cost: f.updateCost, cost_price: Number(f.cost),
+    update_retail: f.updateRetail, selling_price: Number(f.retail),
+    update_wholesale: f.updateWholesale, wholesale_price: Number(f.wholesale), min_wholesale: Number(f.minWholesale || 0),
+  }, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      if (f.updateRetail) upProduct.value.basePrice = Number(f.retail)
+      if (f.updateCost) upProduct.value.cost = Number(f.cost)
+      if (f.updateWholesale) { upProduct.value.wholesale = Number(f.wholesale); upProduct.value.minWholesale = Number(f.minWholesale || 0) }
+      showUpdatePrice.value = false
+      success('Harga produk diupdate')
+    },
+    onError: (e) => error(e.update_retail || e.cost_price || e.selling_price || e.wholesale_price || 'Gagal update harga'),
+  })
+}
+
+// --- Simpan keranjang langsung dari POS (paralel Java Ctrl+S) ---
+function saveCart() {
+  if (!cart.value.length) { error('Keranjang kosong'); return }
+  const itemCount = cart.value.length
+  const now = new Date()
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  const def = `Keranjang ${now.getDate()}/${now.getMonth() + 1} ${hh}:${mm}`
+  const label = window.prompt('Nama simpanan', def)
+  if (label === null) return // batal
+  router.post('/pos/park', {
+    customer_id: customerId.value || null,
+    items: cart.value.map(i => ({
+      product_id: i.id, product_name: i.name, sku: i.sku,
+      quantity: i.qty, unit_price: i.price, discount: 0,
+    })),
+    discount: Number(discountValue.value) || 0,
+    tax_amount: 0,
+    notes: label.trim() || def,
+  }, {
+    onSuccess: () => {
+      cart.value = []; customerId.value = ''; discount.value = 0; discountType.value = 'amount'
+      success(`Keranjang disimpan (${itemCount} item)`)
+    },
+    onError: (e) => error(e.items || 'Gagal menyimpan keranjang'),
+  })
+}
+
 function goCheckout() {
   if (!cart.value.length) { error('Keranjang kosong'); return }
   router.visit('/pos/checkout')
@@ -151,7 +249,15 @@ function goCheckout() {
               <div class="flex justify-between gap-2">
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium truncate">{{ item.name }}</p>
-                  <p class="text-xs text-muted-foreground">{{ item.sku }} • Rp {{ Number(item.price).toLocaleString('id-ID') }}</p>
+                  <p class="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                    <span class="truncate">{{ item.sku }}</span>
+                    <span v-if="isCustom(item)" class="px-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">CUSTOM</span>
+                    <span v-if="canEditPrice" class="flex items-center gap-1 ml-auto">
+                      <span>Rp</span>
+                      <input type="number" v-model.number="item.price" @change="onPriceChange(item)" min="0" step="any" class="w-20 px-1 py-0.5 text-right border border-border rounded bg-background text-xs" />
+                    </span>
+                    <span v-else class="ml-auto">Rp {{ Number(item.price).toLocaleString('id-ID') }}</span>
+                  </p>
                 </div>
                 <button @click="removeItem(item)" class="text-destructive hover:text-destructive/80 p-1"><TrashIcon class="w-4 h-4" /></button>
               </div>
@@ -180,13 +286,60 @@ function goCheckout() {
               <option v-for="c in customers" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
             </select>
             <div class="grid grid-cols-2 gap-2">
-              <button type="button" @click="goPark" :disabled="!cart.length" class="py-2.5 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600 disabled:opacity-50 flex items-center justify-center gap-1"><PauseIcon class="w-4 h-4" /> Simpan Park</button>
+              <button type="button" @click="saveCart" :disabled="!cart.length" class="py-2.5 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600 disabled:opacity-50 flex items-center justify-center gap-1"><PauseIcon class="w-4 h-4" /> Simpan Keranjang</button>
               <button type="button" @click="clearCart" :disabled="!cart.length" class="py-2.5 bg-muted text-foreground border border-border rounded-lg text-sm hover:bg-accent disabled:opacity-50">Kosongkan</button>
             </div>
             <button type="button" @click="goCheckout" :disabled="!cart.length" class="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"><CreditCardIcon class="w-5 h-5" /> Bayar & Checkout</button>
             <p class="text-xs text-center text-muted-foreground">Menu page • Hemat memori vs popup</p>
           </div>
         </Card>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL UPDATE HARGA (ala Java) ==================== -->
+    <div v-if="showUpdatePrice" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showUpdatePrice = false">
+      <div class="bg-card rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+        <h3 class="font-semibold text-lg">Update Harga Produk</h3>
+        <p class="text-sm text-muted-foreground mt-1">{{ upProduct?.name }} <span class="text-xs">({{ upProduct?.sku }})</span></p>
+        <p class="text-xs text-muted-foreground mt-2">Harga di keranjang sudah jadi <strong class="text-primary">Rp {{ Number(upProduct?.price || 0).toLocaleString('id-ID') }}</strong>. Centang field yang ingin ditulis ke produk master:</p>
+
+        <div class="space-y-3 mt-4">
+          <div class="p-3 border border-border rounded-lg">
+            <label class="flex items-center gap-2 font-medium text-sm cursor-pointer">
+              <input type="checkbox" v-model="upForm.updateCost" class="rounded" />
+              Harga Modal
+              <span class="ml-auto px-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">UPDATE</span>
+            </label>
+            <input v-if="upForm.updateCost" type="number" v-model.number="upForm.cost" min="0" step="any" placeholder="0" class="w-full mt-2 border border-input rounded px-3 py-2 text-sm bg-background" />
+          </div>
+
+          <div class="p-3 border border-border rounded-lg">
+            <label class="flex items-center gap-2 font-medium text-sm cursor-pointer">
+              <input type="checkbox" v-model="upForm.updateRetail" class="rounded" />
+              Harga Ecer
+              <span class="ml-auto px-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">UPDATE</span>
+            </label>
+            <input v-if="upForm.updateRetail" type="number" v-model.number="upForm.retail" min="0" step="any" placeholder="0" class="w-full mt-2 border border-input rounded px-3 py-2 text-sm bg-background" />
+          </div>
+
+          <div class="p-3 border border-border rounded-lg">
+            <label class="flex items-center gap-2 font-medium text-sm cursor-pointer">
+              <input type="checkbox" v-model="upForm.updateWholesale" class="rounded" />
+              Harga Grosir
+              <span class="ml-auto px-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">UPDATE</span>
+            </label>
+            <template v-if="upForm.updateWholesale">
+              <input type="number" v-model.number="upForm.wholesale" min="0" step="any" placeholder="0" class="w-full mt-2 border border-input rounded px-3 py-2 text-sm bg-background" />
+              <label class="text-xs text-muted-foreground mt-2 block">Min. Qty Grosir</label>
+              <input type="number" v-model.number="upForm.minWholesale" min="0" class="w-full mt-1 border border-input rounded px-3 py-2 text-sm bg-background" />
+            </template>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+          <button @click="showUpdatePrice = false" class="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent">Batal</button>
+          <button @click="confirmUpdatePrice" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90">Update Harga</button>
+        </div>
       </div>
     </div>
   </AppLayout>

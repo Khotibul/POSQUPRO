@@ -1,0 +1,72 @@
+<Window x:Class="Posqupro.Desktop.Views.Dialogs.UpdatePriceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Update Harga Produk"
+        Width="440"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource Cloud}">
+    <StackPanel Margin="20" MaxHeight="560">
+        <TextBlock x:Name="MessageText"
+                   Margin="0,0,0,4"
+                   Style="{StaticResource CardTitle}" />
+        <TextBlock x:Name="HintText"
+                   Margin="0,0,0,12"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Text="Harga di keranjang sudah menjadi harga custom. Centang field yang ingin ditulis ke produk master:" />
+        <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <CheckBox x:Name="CostCheck"
+                          Content="Harga Modal"
+                          FontWeight="SemiBold"
+                          Checked="OnSectionChanged"
+                          Unchecked="OnSectionChanged" />
+                <TextBox x:Name="CostBox"
+                         Margin="0,6,0,14"
+                         IsEnabled="False"
+                         Style="{StaticResource Input}" />
+                <CheckBox x:Name="RetailCheck"
+                          Content="Harga Ecer"
+                          FontWeight="SemiBold"
+                          IsChecked="True"
+                          Checked="OnSectionChanged"
+                          Unchecked="OnSectionChanged" />
+                <TextBox x:Name="RetailBox"
+                         Margin="0,6,0,14"
+                         Style="{StaticResource Input}" />
+                <CheckBox x:Name="WholesaleCheck"
+                          Content="Harga Grosir"
+                          FontWeight="SemiBold"
+                          Checked="OnSectionChanged"
+                          Unchecked="OnSectionChanged" />
+                <TextBox x:Name="WholesaleBox"
+                         Margin="0,6,0,8"
+                         IsEnabled="False"
+                         Style="{StaticResource Input}" />
+                <TextBlock x:Name="MinWholesaleLabel"
+                           Margin="4,0,0,4"
+                           FontSize="12"
+                           IsEnabled="False"
+                           Text="Min. Qty Grosir" />
+                <TextBox x:Name="MinWholesaleBox"
+                         IsEnabled="False"
+                         Style="{StaticResource Input}" />
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Margin="0,18,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button MinWidth="92"
+                    Margin="0,0,10,0"
+                    Click="OnCancel"
+                    Content="Batal"
+                    IsCancel="True"
+                    Style="{StaticResource GhostButton}" />
+            <Button MinWidth="92"
+                    Click="OnConfirm"
+                    Content="Update Harga"
+                    IsDefault="True"
+                    Style="{StaticResource PrimaryButton}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

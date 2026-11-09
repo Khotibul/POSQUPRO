@@ -7,7 +7,7 @@ import Card from '@/Components/UI/Card.vue'
 import Badge from '@/Components/UI/Badge.vue'
 import {
   BuildingOfficeIcon, CreditCardIcon, PrinterIcon,
-  Cog6ToothIcon, CheckCircleIcon, XCircleIcon
+  Cog6ToothIcon, CheckCircleIcon, XCircleIcon, ComputerDesktopIcon
 } from '@heroicons/vue/24/outline'
 
 const { success, error } = useToast()
@@ -25,6 +25,7 @@ const processing = ref(false)
 const tabs = [
   { id: 'store', label: 'Toko', icon: BuildingOfficeIcon },
   { id: 'payment', label: 'Pembayaran', icon: CreditCardIcon },
+  { id: 'pos', label: 'POS', icon: ComputerDesktopIcon },
   { id: 'printer', label: 'Printer', icon: PrinterIcon },
   { id: 'tax', label: 'Pajak', icon: Cog6ToothIcon },
 ]
@@ -91,6 +92,36 @@ async function savePrinter() {
     await router.post('/settings', {
       group: 'printer',
       settings: Object.entries(printerForm.value).map(([key, value]) => ({ key, value })),
+    }, { onFinish: () => { processing.value = false } })
+  } catch (e) { error('Gagal menyimpan') }
+}
+
+// POS (edit harga) — semantik sama dengan Java desktop:
+// custom price default OFF; auto update harga default ON (missing → true)
+const posForm = ref({
+  'product.pos.custom.price.enabled': getSetting('product.pos.custom.price.enabled') === 'true',
+  'pos.editPrice.autoUpdate.enabled': getSetting('pos.editPrice.autoUpdate.enabled') !== 'false',
+})
+
+const isCustomPriceEnabled = computed({
+  get: () => posForm.value['product.pos.custom.price.enabled'] === true,
+  set: (v) => { posForm.value['product.pos.custom.price.enabled'] = v === true },
+})
+
+const isAutoUpdatePrice = computed({
+  get: () => posForm.value['pos.editPrice.autoUpdate.enabled'] === true,
+  set: (v) => { posForm.value['pos.editPrice.autoUpdate.enabled'] = v === true },
+})
+
+async function savePos() {
+  processing.value = true
+  try {
+    await router.post('/settings', {
+      group: 'pos',
+      settings: [
+        { key: 'product.pos.custom.price.enabled', value: posForm.value['product.pos.custom.price.enabled'] ? 'true' : 'false' },
+        { key: 'pos.editPrice.autoUpdate.enabled', value: posForm.value['pos.editPrice.autoUpdate.enabled'] ? 'true' : 'false' },
+      ],
     }, { onFinish: () => { processing.value = false } })
   } catch (e) { error('Gagal menyimpan') }
 }
@@ -237,6 +268,45 @@ const receiptPreviewWidth = computed(() => {
           </div>
         </div>
       </Card>
+    </div>
+
+    <!-- ==================== POS TAB ==================== -->
+    <div v-if="activeTab === 'pos'" class="space-y-6 max-w-3xl">
+      <Card title="Edit Harga di Kasir">
+        <p class="text-sm text-muted-foreground mb-4">Atur siapa yang boleh mengedit harga saat transaksi POS (paralel desktop Java)</p>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between p-4 border border-border rounded-lg">
+            <div>
+              <p class="font-medium text-sm">Harga Bisa Diedit Kasir</p>
+              <p class="text-xs text-muted-foreground">Semua kasir boleh mengedit harga di keranjang POS (tanpa dialog update harga)</p>
+            </div>
+            <button @click="isCustomPriceEnabled = !isCustomPriceEnabled"
+              :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                isCustomPriceEnabled ? 'bg-primary' : 'bg-muted']">
+              <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                isCustomPriceEnabled ? 'translate-x-6' : 'translate-x-1']" />
+            </button>
+          </div>
+          <div class="flex items-center justify-between p-4 border border-border rounded-lg">
+            <div>
+              <p class="font-medium text-sm">Auto Update Harga Produk</p>
+              <p class="text-xs text-muted-foreground">Admin yang mengedit harga di POS otomatis ditawari update harga produk master (modal/ecer/grosir)</p>
+            </div>
+            <button @click="isAutoUpdatePrice = !isAutoUpdatePrice"
+              :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                isAutoUpdatePrice ? 'bg-primary' : 'bg-muted']">
+              <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                isAutoUpdatePrice ? 'translate-x-6' : 'translate-x-1']" />
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      <div class="flex justify-end">
+        <button @click="savePos" :disabled="processing" class="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
+          {{ processing ? 'Menyimpan...' : 'Simpan Pengaturan POS' }}
+        </button>
+      </div>
     </div>
 
     <!-- ==================== PRINTER TAB ==================== -->

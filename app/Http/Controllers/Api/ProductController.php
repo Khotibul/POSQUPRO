@@ -71,6 +71,8 @@ class ProductController extends Controller
             'type' => ['sometimes', 'in:raw_material,finished_goods,service'],
             'cost_price' => ['sometimes', 'numeric', 'min:0'],
             'selling_price' => ['sometimes', 'numeric', 'min:0'],
+            'wholesale_price' => ['nullable', 'numeric', 'min:0'],
+            'min_wholesale' => ['nullable', 'integer', 'min:0'],
             'stock' => ['sometimes', 'integer', 'min:0'],
             'min_stock' => ['nullable', 'integer', 'min:0'],
             'description' => ['nullable', 'string'],

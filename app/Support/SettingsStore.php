@@ -91,11 +91,17 @@ class SettingsStore
     public static function getPublic(): array
     {
         if (self::mode() !== 'laravel' || ! Schema::hasColumn('settings', 'is_public')) {
-            return [];
+            $public = [];
+        } else {
+            $public = DB::table('settings')->where('is_public', true)->get(['key', 'value'])
+                ->mapWithKeys(fn ($s) => [$s->key => $s->value])->all();
         }
 
-        return DB::table('settings')->where('is_public', true)->get(['key', 'value'])
-            ->mapWithKeys(fn ($s) => [$s->key => $s->value])->all();
+        // Gate fitur POS selalu ikut terkirim ke client (aman: hanya flag boolean)
+        $public['product.pos.custom.price.enabled'] ??= self::get('product.pos.custom.price.enabled', 'false');
+        $public['pos.editPrice.autoUpdate.enabled'] ??= self::get('pos.editPrice.autoUpdate.enabled', 'true');
+
+        return $public;
     }
 
     /**

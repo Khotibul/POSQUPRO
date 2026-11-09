@@ -886,6 +886,8 @@ public sealed class SyncService(LocalDatabase database, ApiClient api, AppSettin
             ["cost_price"] = Json.Dec(row, "cost_price") ?? Json.Dec(row, "cost") ?? 0,
             ["selling_price"] = Json.Dec(row, "selling_price") ?? Json.Dec(row, "price") ?? 0,
             ["price"] = Json.Dec(row, "price") ?? 0,
+            ["wholesale_price"] = Json.Dec(row, "wholesale_price") ?? 0,
+            ["min_wholesale"] = (int)(Json.Dec(row, "min_wholesale") ?? 0),
             ["stock"] = Json.Dec(row, "stock") ?? 0,
             ["min_stock"] = Json.Dec(row, "min_stock") ?? 5,
             ["is_active"] = Json.Bool(row, "is_active", true),

@@ -42,7 +42,28 @@ public sealed class LocalDatabase
         var command = connection.CreateCommand();
         command.CommandText = Schema;
         await command.ExecuteNonQueryAsync();
+
+        // Penambahan kolom untuk install lama (idempotent: gagal = kolom sudah ada)
+        foreach (var ddl in SchemaAdds)
+        {
+            var addColumn = connection.CreateCommand();
+            addColumn.CommandText = ddl;
+            try
+            {
+                await addColumn.ExecuteNonQueryAsync();
+            }
+            catch (SqliteException)
+            {
+                // column already exists
+            }
+        }
     }
+
+    private static readonly string[] SchemaAdds =
+    [
+        "ALTER TABLE products ADD COLUMN wholesale_price REAL NOT NULL DEFAULT 0;",
+        "ALTER TABLE products ADD COLUMN min_wholesale INTEGER NOT NULL DEFAULT 0;",
+    ];
 
     private async Task<SqliteConnection> OpenAsync()
     {
@@ -584,6 +605,8 @@ public sealed class LocalDatabase
             cost_price REAL NOT NULL DEFAULT 0,
             selling_price REAL NOT NULL DEFAULT 0,
             price REAL NOT NULL DEFAULT 0,
+            wholesale_price REAL NOT NULL DEFAULT 0,
+            min_wholesale INTEGER NOT NULL DEFAULT 0,
             stock REAL NOT NULL DEFAULT 0,
             min_stock REAL NOT NULL DEFAULT 5,
             is_active INTEGER NOT NULL DEFAULT 1,

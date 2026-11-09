@@ -80,3 +80,5 @@ F:\Website Js\POSQUPRO\POSQUPRO-Desktop-CSharp\src\Posqupro.Desktop\obj\Release\
 F:\Website Js\POSQUPRO\POSQUPRO-Desktop-CSharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\PosquproDesktop.pdb
 F:\Website Js\POSQUPRO\POSQUPRO-Desktop-CSharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\Posqupro.Desktop.genruntimeconfig.cache
 F:\Website Js\POSQUPRO\POSQUPRO-Desktop-CSharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\ref\PosquproDesktop.dll
+F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\Views\Dialogs\UpdatePriceWindow.baml
+F:\Website Js\POSQUPRO\posqupro-desktop-csharp\src\Posqupro.Desktop\obj\Release\net10.0-windows\Views\Dialogs\UpdatePriceWindow.g.cs

@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Models\ParkedTransaction;
 use App\Models\Product;
+use App\Repositories\ProductRepository;
 use App\Services\ParkedTransactionService;
 use App\Services\SaleService;
 use App\Support\SettingsStore;
@@ -29,6 +30,7 @@ class PosController extends Controller
             'customers' => Customer::select('id', 'name', 'phone')->where('is_active', true)->orWhere('active', 1)->limit(100)->get(),
             'categories' => Category::select('id', 'name')->where('is_active', true)->get(),
             'filters' => $request->only(['search', 'category']),
+            'posSettings' => $this->getPriceGateSettings(),
         ]);
     }
 
@@ -52,6 +54,13 @@ class PosController extends Controller
         $data = $request->validate([
             'customer_id' => ['nullable', 'exists:customers,id'],
             'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.product_name' => ['nullable', 'string'],
+            'items.*.sku' => ['nullable', 'string'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'tax_amount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -74,6 +83,51 @@ class PosController extends Controller
         return redirect()->back()->with('success', 'Parkir dihapus!');
     }
 
+    /**
+     * Update harga produk master dari POS (paralel dengan Java desktop
+     * "Update Harga Produk" dialog). Menulis checked fields ke product
+     * sekaligus menjaga alias kolom price/cost.
+     */
+    public function updateProductPrice(Request $request, Product $product, ProductRepository $repository)
+    {
+        $data = $request->validate([
+            'update_cost' => ['boolean'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'update_retail' => ['boolean'],
+            'selling_price' => ['nullable', 'numeric', 'min:0'],
+            'update_wholesale' => ['boolean'],
+            'wholesale_price' => ['nullable', 'numeric', 'min:0'],
+            'min_wholesale' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $payload = [];
+        if ($data['update_cost']) {
+            $payload['cost_price'] = $data['cost_price'] ?? 0;
+        }
+        if ($data['update_retail']) {
+            $payload['selling_price'] = $data['selling_price'] ?? 0;
+        }
+        if ($data['update_wholesale']) {
+            $payload['wholesale_price'] = $data['wholesale_price'] ?? 0;
+            $payload['min_wholesale'] = $data['min_wholesale'] ?? 0;
+        }
+
+        if (! $payload) {
+            return back()->withErrors(['update_retail' => 'Centang minimal satu harga untuk diupdate.']);
+        }
+
+        // Guard ala Java: field yang dicentang wajib > 0
+        foreach (['cost_price', 'selling_price', 'wholesale_price'] as $field) {
+            if (array_key_exists($field, $payload) && ! ($payload[$field] > 0)) {
+                return back()->withErrors([$field => 'Harga harus lebih dari 0.']);
+            }
+        }
+
+        $repository->update($product, $payload);
+
+        return back()->with('success', 'Harga "'.$product->name.'" berhasil diupdate!');
+    }
+
     public function checkout(Request $request, SaleService $service)
     {
         $data = $request->validate([
@@ -89,10 +143,13 @@ class PosController extends Controller
             'payment' => ['nullable', 'array'],
             'payment.method' => ['nullable', 'in:cash,card,qris,transfer'],
             'payment.amount' => ['nullable', 'numeric'],
+            'notes' => ['nullable', 'string'],
         ]);
 
         $data['type'] = $data['type'] ?? 'sell';
         $data['user_id'] = auth()->id();
+
+        $customerName = $data['customer_id'] ? (Customer::find($data['customer_id'])?->name) : null;
 
         try {
             $result = $service->create($data);
@@ -111,6 +168,7 @@ class PosController extends Controller
                     'change_amount' => $result['sale']->change_amount,
                     'status' => $result['sale']->status,
                     'created_at' => $result['sale']->created_at,
+                    'customer_name' => $customerName,
                     'items' => $result['items']->map(fn ($i) => [
                         'product_name' => $i->product_name,
                         'sku' => $i->sku,
@@ -128,6 +186,23 @@ class PosController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['items' => $e->getMessage()])->withInput();
         }
+    }
+
+    /**
+     * Gate edit harga ala Java desktop:
+     * - custom_price_enabled: setting product.pos.custom.price.enabled (missing → false)
+     * - auto_update_price: setting pos.editPrice.autoUpdate.enabled (missing → true, sesuai Java)
+     *
+     * @return array{custom_price_enabled: bool, auto_update_price: bool}
+     */
+    private function getPriceGateSettings(): array
+    {
+        $rows = SettingsStore::map();
+
+        return [
+            'custom_price_enabled' => ($rows['product.pos.custom.price.enabled'] ?? 'false') === 'true',
+            'auto_update_price' => ($rows['pos.editPrice.autoUpdate.enabled'] ?? 'true') !== 'false',
+        ];
     }
 
     private function getPosSettings(): array

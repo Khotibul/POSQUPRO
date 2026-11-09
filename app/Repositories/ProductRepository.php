@@ -25,14 +25,39 @@ class ProductRepository
 
     public function create(array $data): Product
     {
-        return Product::create($data);
+        return Product::create(self::withPriceAliases($data));
     }
 
     public function update(Product $product, array $data): Product
     {
-        $product->update($data);
+        $product->update(self::withPriceAliases($data));
 
         return $product->fresh(['category', 'unitQuantity', 'tax', 'supplier']);
+    }
+
+    /**
+     * Keep Java/desktop-compatible aliases in sync: price <-> selling_price,
+     * cost <-> cost_price. Java desktop reads `price`/`cost` directly while
+     * Laravel writes `selling_price`/`cost_price`.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function withPriceAliases(array $data): array
+    {
+        if (array_key_exists('selling_price', $data) && ! array_key_exists('price', $data)) {
+            $data['price'] = $data['selling_price'];
+        } elseif (array_key_exists('price', $data) && ! array_key_exists('selling_price', $data)) {
+            $data['selling_price'] = $data['price'];
+        }
+
+        if (array_key_exists('cost_price', $data) && ! array_key_exists('cost', $data)) {
+            $data['cost'] = $data['cost_price'];
+        } elseif (array_key_exists('cost', $data) && ! array_key_exists('cost_price', $data)) {
+            $data['cost_price'] = $data['cost'];
+        }
+
+        return $data;
     }
 
     public function delete(Product $product): bool

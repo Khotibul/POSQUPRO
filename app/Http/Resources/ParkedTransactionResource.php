@@ -12,6 +12,7 @@ class ParkedTransactionResource extends JsonResource
         return [
             'id' => $this->id,
             'invoice_number' => $this->invoice_number,
+            'customer_id' => $this->customer_id,
             'customer' => $this->whenLoaded('customer'),
             'user' => $this->whenLoaded('user'),
             'items' => $this->items,

@@ -259,6 +259,7 @@ function closeReceipt() {
 
             <table><tr><td>No</td><td>: {{ lastSale.invoice_no }}</td></tr>
             <tr><td>Kasir</td><td>: {{ lastSale.cashier }}</td></tr>
+            <tr v-if="lastSale.customer_name"><td>Pelanggan</td><td>: {{ lastSale.customer_name }}</td></tr>
             <tr><td>Tanggal</td><td>: {{ formatDate(lastSale.created_at) }}</td></tr></table>
 
             <div class="line"></div>

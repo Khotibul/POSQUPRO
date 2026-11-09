@@ -14,6 +14,8 @@ class Product {
   final String? supplierName;
   final double costPrice;
   final double sellingPrice;
+  final double wholesalePrice;
+  final int minWholesale;
   final int stock;
   final int minStock;
   final String? image;
@@ -38,6 +40,8 @@ class Product {
     this.supplierName,
     this.costPrice = 0,
     this.sellingPrice = 0,
+    this.wholesalePrice = 0,
+    this.minWholesale = 0,
     this.stock = 0,
     this.minStock = 0,
     this.image,
@@ -62,6 +66,8 @@ class Product {
       supplierName: json['supplier']?['name'],
       costPrice: double.tryParse(json['cost_price']?.toString() ?? '0') ?? 0,
       sellingPrice: double.tryParse(json['selling_price']?.toString() ?? json['price']?.toString() ?? '0') ?? 0,
+      wholesalePrice: double.tryParse(json['wholesale_price']?.toString() ?? '0') ?? 0,
+      minWholesale: json['min_wholesale'] ?? 0,
       stock: json['stock'] ?? 0,
       minStock: json['min_stock'] ?? 0,
       image: json['image'] ?? json['photo'],

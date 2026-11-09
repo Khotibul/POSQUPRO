@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos/park', [PosController::class, 'parkPage'])->name('pos.park.page');
     Route::post('/pos/park', [PosController::class, 'park'])->name('pos.park');
     Route::delete('/pos/park/{id}', [PosController::class, 'destroyPark'])->name('pos.park.destroy');
+    Route::put('/pos/product-price/{product}', [PosController::class, 'updateProductPrice'])->name('pos.product-price.update');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
 
     // Products - support search/filter params
