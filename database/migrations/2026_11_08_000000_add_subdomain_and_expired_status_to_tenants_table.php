@@ -9,20 +9,30 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('tenants', function (Blueprint $table) {
-            $table->string('subdomain')->nullable()->after('domain');
-        });
+        if (! Schema::hasColumn('tenants', 'subdomain')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->string('subdomain')->nullable()->after('domain');
+            });
+        }
 
-        DB::statement("ALTER TABLE tenants MODIFY status ENUM('active','inactive','suspended','trial','expired') NOT NULL DEFAULT 'trial'");
+        // ENUM adalah MySQL-only; SQLite (test suite) menyimpan status sebagai teks biasa
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE tenants MODIFY status ENUM('active','inactive','suspended','trial','expired') NOT NULL DEFAULT 'trial'");
+        }
     }
 
     public function down(): void
     {
         DB::statement("UPDATE tenants SET status = 'inactive' WHERE status = 'expired'");
-        DB::statement("ALTER TABLE tenants MODIFY status ENUM('active','inactive','suspended','trial') NOT NULL DEFAULT 'trial'");
 
-        Schema::table('tenants', function (Blueprint $table) {
-            $table->dropColumn('subdomain');
-        });
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE tenants MODIFY status ENUM('active','inactive','suspended','trial') NOT NULL DEFAULT 'trial'");
+        }
+
+        if (Schema::hasColumn('tenants', 'subdomain')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->dropColumn('subdomain');
+            });
+        }
     }
 };

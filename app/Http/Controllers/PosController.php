@@ -149,7 +149,8 @@ class PosController extends Controller
         $data['type'] = $data['type'] ?? 'sell';
         $data['user_id'] = auth()->id();
 
-        $customerName = $data['customer_id'] ? (Customer::find($data['customer_id'])?->name) : null;
+        $customerId = $data['customer_id'] ?? null;
+        $customerName = $customerId ? (Customer::find($customerId)?->name) : null;
 
         try {
             $result = $service->create($data);
