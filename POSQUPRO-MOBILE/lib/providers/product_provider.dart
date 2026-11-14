@@ -25,6 +25,56 @@ class ProductProvider extends ChangeNotifier {
   String? get error => _error;
   int? get selectedCategoryId => _selectedCategoryId;
 
+  bool _isLoadingAll = false;
+
+  /// Memuat seluruh katalog (bukan hanya halaman pertama) untuk kasir.
+  /// Pencarian di layar kasir menjadi akurat untuk semua produk, termasuk
+  /// SKU/barcode yang berada di halaman berikutnya.
+  Future<void> loadAllProductsForPos() async {
+    if (_isLoadingAll) return;
+    _isLoadingAll = true;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final all = <Product>[];
+      var page = 1;
+      var lastPage = 1;
+      do {
+        final res = await _api.get(ApiConstants.products, queryParams: {
+          'page': '$page',
+          'per_page': '200',
+        });
+        if (res['success'] != true) {
+          _error = res['message'] ?? 'Gagal memuat produk';
+          break;
+        }
+        final parsed = PaginatedResponse.fromJson(
+          res['data'],
+          (json) => Product.fromJson(json),
+        );
+        all.addAll(parsed.data);
+        lastPage = parsed.lastPage;
+        if (parsed.data.isEmpty) break;
+        page++;
+      } while (page <= lastPage && page <= 200);
+
+      if (all.isNotEmpty || _error == null) {
+        _products = all;
+        _currentPage = page;
+        _hasMore = false;
+        _applyFilter();
+      }
+    } catch (e) {
+      _error = 'Gagal memuat produk';
+    }
+
+    _isLoadingAll = false;
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Future<void> loadProducts({bool refresh = false}) async {
     if (refresh) {
       _currentPage = 1;
@@ -74,7 +124,7 @@ class ProductProvider extends ChangeNotifier {
 
   Future<void> loadCategories() async {
     try {
-      final res = await _api.get(ApiConstants.categories);
+      final res = await _api.get(ApiConstants.categories, queryParams: {'per_page': '200'});
       if (res['success'] == true) {
         final items = (res['data']['data'] as List<dynamic>? ?? [])
             .map((e) => Category.fromJson(e))

@@ -19,6 +19,50 @@ class CustomerProvider extends ChangeNotifier {
   bool get hasMore => _hasMore;
   String? get error => _error;
 
+  /// Memuat semua pelanggan agar pencarian di checkout tidak terbatas
+  /// pada 15 pelanggan pertama.
+  Future<void> loadAllCustomers() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final all = <Customer>[];
+      var page = 1;
+      var lastPage = 1;
+      do {
+        final res = await _api.get(ApiConstants.customers, queryParams: {
+          'page': '$page',
+          'per_page': '200',
+        });
+        if (res['success'] != true) {
+          _error = res['message'] ?? 'Gagal memuat pelanggan';
+          break;
+        }
+        final parsed = PaginatedResponse.fromJson(
+          res['data'],
+          (json) => Customer.fromJson(json),
+        );
+        all.addAll(parsed.data);
+        lastPage = parsed.lastPage;
+        if (parsed.data.isEmpty) break;
+        page++;
+      } while (page <= lastPage && page <= 100);
+
+      if (all.isNotEmpty || _error == null) {
+        _customers = all;
+        _hasMore = false;
+        _currentPage = page;
+      }
+    } catch (e) {
+      _error = 'Gagal memuat pelanggan';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Future<void> loadCustomers({bool refresh = false}) async {
     if (refresh) {
       _currentPage = 1;

@@ -9,9 +9,12 @@ use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Category::latest()->paginate(15);
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 200);
+
+        return Category::when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
+            ->latest()->paginate($perPage);
     }
 
     public function store(Request $request)

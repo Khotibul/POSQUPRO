@@ -30,6 +30,13 @@ class TransactionService
             }
             $discount = $data['discount'] ?? 0;
             $taxAmount = $data['tax_amount'] ?? 0;
+
+            if ($discount > $subtotal) {
+                throw ValidationException::withMessages([
+                    'discount' => 'Diskon transaksi tidak boleh melebihi subtotal.',
+                ]);
+            }
+
             $total = $subtotal - $discount + $taxAmount;
 
             // Payment data
@@ -58,10 +65,17 @@ class TransactionService
 
                 // Validate stock for sales
                 if ($type === 'sell' && $stockBefore < $item['quantity']) {
-                    throw new \Exception("Stok {$product->name} tidak cukup. Tersedia: {$stockBefore}, diminta: {$item['quantity']}");
+                    throw ValidationException::withMessages([
+                        'items' => "Stok {$product->name} tidak cukup. Tersedia: {$stockBefore}, diminta: {$item['quantity']}",
+                    ]);
                 }
 
                 $lineSubtotal = $item['quantity'] * $item['unit_price'] - ($item['discount'] ?? 0);
+                if ($lineSubtotal < 0) {
+                    throw ValidationException::withMessages([
+                        'items' => "Diskon {$product->name} melebihi subtotal baris.",
+                    ]);
+                }
 
                 $transaction->items()->create([
                     'product_id' => $product->id,

@@ -17,18 +17,35 @@ class ApiService {
 
   String get baseUrl => _baseUrl;
 
+  /// Menormalkan URL server: selalu memakai skema http/https dan berakhiran
+  /// `/api`. Ini mencegah kesalahan umum seperti `posqupro.co-id.id` tanpa
+  /// skema atau `https://host/api/` dengan garis miring ganda.
+  static String normalizeBaseUrl(String url) {
+    var value = url.trim();
+    if (value.isEmpty) return AppConstants.defaultBaseUrl;
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      value = 'https://$value';
+    }
+    value = value.replaceAll(RegExp(r'/+$'), '');
+    final uri = Uri.tryParse(value);
+    if (uri == null) return AppConstants.defaultBaseUrl;
+    final path = uri.path.replaceAll(RegExp(r'/+$'), '');
+    if (path.isEmpty) return '$value/api';
+    return value;
+  }
+
   void setToken(String? token) {
     _token = token;
   }
 
   void setBaseUrl(String url) {
-    _baseUrl = url;
-    ApiConstants.baseUrl = url;
+    final normalized = normalizeBaseUrl(url);
+    _baseUrl = normalized;
+    ApiConstants.baseUrl = normalized;
   }
 
   void initFromConfig(String baseUrl) {
-    _baseUrl = baseUrl;
-    ApiConstants.baseUrl = baseUrl;
+    setBaseUrl(baseUrl);
   }
 
   Future<Map<String, String>> _headers() async {
@@ -167,10 +184,23 @@ class ApiService {
       };
     }
 
+    // Laravel mengirim pesan validasi spesifik di `errors`. Tampilkan pesan
+    // pertama (mis. stok tidak cukup) agar kasir tahu penyebab kegagalan.
+    String? validationMessage;
+    final errors = body['errors'];
+    if (errors is Map && errors.isNotEmpty) {
+      final first = errors.values.first;
+      if (first is List && first.isNotEmpty) {
+        validationMessage = first.first?.toString();
+      } else if (first != null) {
+        validationMessage = first.toString();
+      }
+    }
+
     return {
       'success': false,
-      'message': body['message'] ?? 'Terjadi kesalahan',
-      'errors': body['errors'],
+      'message': validationMessage ?? body['message'] ?? 'Terjadi kesalahan',
+      'errors': errors,
     };
   }
 }

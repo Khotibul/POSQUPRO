@@ -10,8 +10,10 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 200);
+
         return Customer::when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->latest()->paginate(15);
+            ->latest()->paginate($perPage);
     }
 
     public function store(Request $request)

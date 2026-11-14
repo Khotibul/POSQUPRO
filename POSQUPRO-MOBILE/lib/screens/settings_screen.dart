@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/api_service.dart';
+import '../core/database_config_service.dart';
 import '../core/theme.dart';
+import '../models/db_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 
@@ -74,6 +77,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            const _ConnectionCard(),
             const SizedBox(height: 20),
             _Section(
               title: 'Toko',
@@ -214,6 +219,187 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (success) await provider.loadPublicSettings();
+  }
+}
+
+class _ConnectionCard extends StatefulWidget {
+  const _ConnectionCard();
+
+  @override
+  State<_ConnectionCard> createState() => _ConnectionCardState();
+}
+
+class _ConnectionCardState extends State<_ConnectionCard> {
+  bool _testing = false;
+  bool? _healthy;
+
+  Future<void> _test() async {
+    setState(() {
+      _testing = true;
+      _healthy = null;
+    });
+    try {
+      final res = await ApiService().get('/health');
+      if (!mounted) return;
+      setState(() => _healthy = res['success'] == true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            res['success'] == true
+                ? 'Server terhubung dengan baik.'
+                : (res['message'] ?? 'Server tidak merespons.'),
+          ),
+          backgroundColor: res['success'] == true ? AppColors.success : AppColors.danger,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _healthy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal terhubung: $e'), backgroundColor: AppColors.danger),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  Future<void> _editUrl() async {
+    final controller = TextEditingController(text: ApiService().baseUrl);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Alamat Server API'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'URL API',
+                hintText: 'https://posqupro.co-id.id/api',
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Gunakan https://posqupro.co-id.id/api untuk server produksi.',
+              style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final url = ApiService.normalizeBaseUrl(controller.text);
+    ApiService().setBaseUrl(url);
+    final uri = Uri.tryParse(url);
+    await DatabaseConfigService().saveConfig(DbConfig(
+      mode: 'hosting',
+      name: 'Online Hosting',
+      host: uri?.host ?? '',
+      port: 0,
+      user: '',
+      password: '',
+      database: '',
+      apiBaseUrl: url,
+      apiBasePath: '/api',
+    ));
+    if (!mounted) return;
+    setState(() => _healthy = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Alamat server disimpan.'), backgroundColor: AppColors.success),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = ApiService().baseUrl;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.hero,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.dns_rounded, color: Colors.white, size: 19),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Koneksi Server', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(
+                      url.replaceFirst(RegExp(r'^https?://'), ''),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              if (_healthy != null)
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: _healthy! ? AppColors.success : AppColors.danger,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _testing ? null : _test,
+                  icon: _testing
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.wifi_tethering_rounded, size: 16),
+                  label: Text(_testing ? 'Menguji...' : 'Tes Koneksi'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: _editUrl,
+                  icon: const Icon(Icons.edit_rounded, size: 16),
+                  label: const Text('Ubah URL', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.secondaryDark,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

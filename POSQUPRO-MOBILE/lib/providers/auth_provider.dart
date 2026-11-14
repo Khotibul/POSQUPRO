@@ -29,10 +29,18 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-    } catch (_) {}
 
-    await prefs.remove(AppConstants.tokenKey);
-    _api.setToken(null);
+      // Token hanya dihapus jika server benar-benar menolaknya (401).
+      // Saat jaringan putus, sesi disimpan agar pengguna tidak perlu
+      // login ulang ketika koneksi kembali.
+      if (res['unauthorized'] == true) {
+        await prefs.remove(AppConstants.tokenKey);
+        _api.setToken(null);
+      }
+    } catch (_) {
+      _api.setToken(null);
+    }
+
     return false;
   }
 

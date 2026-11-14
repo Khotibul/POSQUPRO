@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../core/api_service.dart';
+import '../core/constants.dart';
 import '../core/database_config_service.dart';
 import '../core/database_service.dart';
 import '../models/db_config.dart';
@@ -74,7 +76,14 @@ class LocalDatabaseProvider extends ChangeNotifier {
   }
 
   Future<void> loadAll() async {
+    if (_config?.mode == 'hosting' || _config == null) {
+      // Tanpa konfigurasi khusus, aplikasi memakai API produksi.
+      await loadHostingStats();
+      return;
+    }
     if (_config?.mode != 'wifi') {
+      _isConnected = true; // mode offline lokal
+      _error = null;
       _isLoading = false;
       notifyListeners();
       return;
@@ -97,6 +106,57 @@ class LocalDatabaseProvider extends ChangeNotifier {
       ]);
     } catch (e) {
       _error = 'Gagal memuat data: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Ringkasan dashboard untuk mode hosting: data diambil dari API
+  /// POSQUPRO, bukan dari MySQL lokal, sehingga angka penjualan dan
+  /// transaksi terakhir tetap akurat di perangkat Android.
+  Future<void> loadHostingStats() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final api = ApiService();
+      final results = await Future.wait([
+        api.get(ApiConstants.financeSummary),
+        api.get(ApiConstants.transactions, queryParams: {'page': '1', 'per_page': '10'}),
+        api.get(ApiConstants.products, queryParams: {'page': '1', 'per_page': '1'}),
+      ]);
+
+      final summary = results[0]['success'] == true ? results[0]['data'] : null;
+      if (summary is Map) {
+        _stats = {
+          'product_count': results[2]['success'] == true
+              ? (results[2]['data'] is Map ? results[2]['data']['total'] ?? 0 : 0)
+              : 0,
+          'customer_count': 0,
+          'supplier_count': 0,
+          'today_sales_count': summary['today_transactions'] ?? 0,
+          'today_sales_total': double.tryParse('${summary['today_revenue'] ?? 0}') ?? 0,
+          'low_stock_count': summary['low_stock_count'] ?? 0,
+        };
+      }
+
+      final txData = results[1]['success'] == true ? results[1]['data'] : null;
+      if (txData is Map && txData['data'] is List) {
+        _transactions = (txData['data'] as List)
+            .whereType<Map>()
+            .map((e) => Transaction.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+
+      _isConnected = results.any((res) => res['success'] == true);
+      if (!_isConnected) {
+        _error = results.first['message']?.toString();
+      }
+    } catch (e) {
+      _isConnected = false;
+      _error = 'Gagal memuat data dari server: $e';
     }
 
     _isLoading = false;

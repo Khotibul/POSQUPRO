@@ -29,7 +29,7 @@ class CartProvider extends ChangeNotifier {
 
   double get subtotal => _items.fold(0, (sum, item) => sum + item.subtotal);
   double get totalDiscount => _items.fold(0, (sum, item) => sum + item.discount);
-  double get total => subtotal - totalDiscount;
+  double get total => (subtotal - totalDiscount).clamp(0, double.infinity).toDouble();
   int get itemCount => _items.fold(0, (sum, item) => sum + item.quantity);
 
   void addItem(Product product) {
@@ -54,6 +54,8 @@ class CartProvider extends ChangeNotifier {
         _items.removeAt(index);
       } else {
         _items[index].quantity = quantity;
+        // Diskon tidak boleh melebihi subtotal baris setelah qty berubah.
+        _items[index].discount = _items[index].discount.clamp(0, _items[index].subtotal).toDouble();
       }
       notifyListeners();
     }
@@ -62,7 +64,8 @@ class CartProvider extends ChangeNotifier {
   void updateDiscount(int productId, double discount) {
     final index = _items.indexWhere((i) => i.product.id == productId);
     if (index >= 0) {
-      _items[index].discount = discount < 0 ? 0 : discount;
+      final maxDiscount = _items[index].subtotal;
+      _items[index].discount = discount.clamp(0, maxDiscount).toDouble();
       notifyListeners();
     }
   }

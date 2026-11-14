@@ -20,7 +20,8 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        $products = $this->service->paginate($request->only(['search', 'category_id', 'type']), 15);
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 200);
+        $products = $this->service->paginate($request->only(['search', 'category_id', 'type']), $perPage);
 
         return ProductResource::collection($products);
     }

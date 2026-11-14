@@ -76,13 +76,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       body: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.primary, Color(0xFF818CF8)],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: AppGradients.hero),
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Column(
@@ -95,6 +89,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
+                  boxShadow: AppShadows.gold,
                 ),
                 child: Image.asset(
                   'assets/icon/logo.png',
@@ -113,8 +108,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 6),
               Text(
-                'Modern Point of Sale',
-                style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)),
+                'SIMPLE · SMART · SUCCESS',
+                style: TextStyle(fontSize: 11, letterSpacing: 2.4, color: AppColors.accent),
               ),
               const SizedBox(height: 40),
               SizedBox(
