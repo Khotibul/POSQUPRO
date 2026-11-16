@@ -173,7 +173,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('tenants', TenantController::class)->names('api.tenants');
     Route::post('tenants/{tenant}/suspend', [TenantController::class, 'suspend']);
     Route::post('tenants/{tenant}/activate', [TenantController::class, 'activate']);
-    Route::apiResource('plans', PlanController::class);
+    Route::apiResource('plans', PlanController::class)->names('api.plans');
     Route::apiResource('invoices', InvoiceController::class)->except(['update']);
     Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'markPaid']);
 });
