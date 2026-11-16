@@ -170,7 +170,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // SaaS management (mirrors web Saas/Tenant/Plan/Invoice controllers, JSON for mobile)
     Route::get('saas/dashboard', [SaasController::class, 'dashboard']);
-    Route::apiResource('tenants', TenantController::class);
+    Route::apiResource('tenants', TenantController::class)->names('api.tenants');
     Route::post('tenants/{tenant}/suspend', [TenantController::class, 'suspend']);
     Route::post('tenants/{tenant}/activate', [TenantController::class, 'activate']);
     Route::apiResource('plans', PlanController::class);
