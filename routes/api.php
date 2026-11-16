@@ -36,144 +36,146 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
-Route::get('/health', fn () => ['status' => 'ok', 'app' => 'POSQUPRO']);
+Route::name('api.')->group(function () {
+    Route::get('/health', fn () => ['status' => 'ok', 'app' => 'POSQUPRO']);
 
-// Desktop (Java SaaSClient) license + monitoring endpoints, X-API-Key auth
-Route::post('/license/validate', [LicenseController::class, 'validate']);
-Route::post('/monitoring/update', [LicenseController::class, 'monitoring']);
-Route::post('/payment/update', [LicenseController::class, 'payment']);
+    // Desktop (Java SaaSClient) license + monitoring endpoints, X-API-Key auth
+    Route::post('/license/validate', [LicenseController::class, 'validate']);
+    Route::post('/monitoring/update', [LicenseController::class, 'monitoring']);
+    Route::post('/payment/update', [LicenseController::class, 'payment']);
 
-// Mobile Auth (Sanctum token-based)
-Route::post('/v1/login', function (Request $request) {
-    $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required', 'string'],
-    ]);
+    // Mobile Auth (Sanctum token-based)
+    Route::post('/v1/login', function (Request $request) {
+        $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
 
-    $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
-    if (! $user) {
-        return response()->json(['message' => 'Email atau password salah.'], 401);
-    }
-
-    $plain = $request->password;
-    $valid = LegacyPassword::verify($plain, $user->password) || LegacyPassword::verify($plain, $user->password_hash) || Hash::check($plain, $user->getAuthPassword());
-    if (! $valid) {
-        return response()->json(['message' => 'Email atau password salah.'], 401);
-    }
-
-    // Auto-migrate legacy SHA256 to bcrypt on successful login (only columns that exist)
-    if (LegacyPassword::needsRehash($user->password ?? null) || LegacyPassword::needsRehash($user->password_hash ?? null)) {
-        $newHash = Hash::make($plain);
-        $migrate = ['password_hash' => $newHash];
-        if (Schema::hasColumn('users', 'password')) {
-            $migrate['password'] = $newHash;
+        if (! $user) {
+            return response()->json(['message' => 'Email atau password salah.'], 401);
         }
-        DB::table('users')->where('id', $user->id)->update($migrate);
-    }
 
-    if (($user->is_active ?? true) === false || ($user->active ?? true) === false) {
-        return response()->json(['message' => 'Akun telah dinonaktifkan.'], 403);
-    }
-
-    // Super Admin / OWNER hanya via Website (Laravel web), tidak via API/Mobile/Desktop
-    $role = strtoupper(trim($user->role ?? ''));
-    if ($role === 'OWNER') {
-        // Check if user has Super Admin Spatie role
-        $isSuperAdmin = method_exists($user, 'hasRole') && $user->hasRole('Super Admin');
-        if ($isSuperAdmin || $role === 'OWNER') {
-            return response()->json(['message' => 'Akun Super Admin hanya dapat login melalui Website. Silakan buka POSQUPRO via browser.'], 403);
+        $plain = $request->password;
+        $valid = LegacyPassword::verify($plain, $user->password) || LegacyPassword::verify($plain, $user->password_hash) || Hash::check($plain, $user->getAuthPassword());
+        if (! $valid) {
+            return response()->json(['message' => 'Email atau password salah.'], 401);
         }
-    }
 
-    $token = $user->createToken('mobile-app')->plainTextToken;
+        // Auto-migrate legacy SHA256 to bcrypt on successful login (only columns that exist)
+        if (LegacyPassword::needsRehash($user->password ?? null) || LegacyPassword::needsRehash($user->password_hash ?? null)) {
+            $newHash = Hash::make($plain);
+            $migrate = ['password_hash' => $newHash];
+            if (Schema::hasColumn('users', 'password')) {
+                $migrate['password'] = $newHash;
+            }
+            DB::table('users')->where('id', $user->id)->update($migrate);
+        }
 
-    $tenant = ($user->tenant_id ?? null) ? $user->tenant()->with('plan')->first() : null;
+        if (($user->is_active ?? true) === false || ($user->active ?? true) === false) {
+            return response()->json(['message' => 'Akun telah dinonaktifkan.'], 403);
+        }
 
-    return response()->json([
-        'token' => $token,
-        'user' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'avatar' => $user->avatar ?? null,
-            'tenant_id' => $user->tenant_id ?? null,
-        ],
-        'tenant' => $tenant ? [
-            'id' => $tenant->id,
-            'name' => $tenant->name,
-            'slug' => $tenant->slug,
-            'status' => $tenant->status,
-            'license_code' => $tenant->license_code ?? null,
-            'plan' => $tenant->plan ? ['id' => $tenant->plan->id, 'name' => $tenant->plan->name] : null,
-        ] : null,
-    ]);
-});
+        // Super Admin / OWNER hanya via Website (Laravel web), tidak via API/Mobile/Desktop
+        $role = strtoupper(trim($user->role ?? ''));
+        if ($role === 'OWNER') {
+            // Check if user has Super Admin Spatie role
+            $isSuperAdmin = method_exists($user, 'hasRole') && $user->hasRole('Super Admin');
+            if ($isSuperAdmin || $role === 'OWNER') {
+                return response()->json(['message' => 'Akun Super Admin hanya dapat login melalui Website. Silakan buka POSQUPRO via browser.'], 403);
+            }
+        }
 
-Route::post('/v1/logout', function (Request $request) {
-    $request->user()->currentAccessToken()->delete();
+        $token = $user->createToken('mobile-app')->plainTextToken;
 
-    return response()->json(['message' => 'Logged out']);
-})->middleware('auth:sanctum');
+        $tenant = ($user->tenant_id ?? null) ? $user->tenant()->with('plan')->first() : null;
 
-// Sanctum authenticated user
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user()->load('roles', 'permissions');
-});
+        return response()->json([
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'avatar' => $user->avatar ?? null,
+                'tenant_id' => $user->tenant_id ?? null,
+            ],
+            'tenant' => $tenant ? [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
+                'status' => $tenant->status,
+                'license_code' => $tenant->license_code ?? null,
+                'plan' => $tenant->plan ? ['id' => $tenant->plan->id, 'name' => $tenant->plan->name] : null,
+            ] : null,
+        ]);
+    });
 
-// POSQUPRO API v1 - mirrors pos-next-js protected routes (requires auth:sanctum)
-Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
-    Route::apiResource('users', UserController::class);
-    Route::apiResource('customers', CustomerController::class);
-    Route::apiResource('suppliers', SupplierController::class);
-    Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('unit-quantities', UnitQuantityController::class);
-    Route::apiResource('taxes', TaxController::class);
-    Route::apiResource('products', ProductController::class);
-    Route::post('products/{product}/photo', [ProductController::class, 'uploadPhoto']);
-    Route::post('products/{product}/generate-label', [ProductController::class, 'generateLabelPhoto']);
-    Route::apiResource('transactions', TransactionController::class);
-    Route::apiResource('payments', PaymentController::class);
-    Route::apiResource('expenses', ExpenseController::class);
-    Route::apiResource('inventory-histories', InventoryHistoryController::class);
+    Route::post('/v1/logout', function (Request $request) {
+        $request->user()->currentAccessToken()->delete();
 
-    // New pos-next-js features
-    Route::apiResource('parked-transactions', ParkedTransactionController::class);
-    Route::post('parked-transactions/{id}/restore', [ParkedTransactionController::class, 'restore']);
-    Route::apiResource('registers', RegisterController::class);
-    Route::apiResource('register-sessions', RegisterSessionController::class)->only(['index']);
-    Route::post('register-sessions/open', [RegisterSessionController::class, 'open']);
-    Route::post('register-sessions/{session}/close', [RegisterSessionController::class, 'close']);
-    Route::get('register-sessions/current/{register}', [RegisterSessionController::class, 'current']);
+        return response()->json(['message' => 'Logged out']);
+    })->middleware('auth:sanctum');
 
-    Route::apiResource('purchase-orders', PurchaseOrderController::class);
-    Route::post('purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive']);
-    Route::apiResource('supplier-invoices', SupplierInvoiceController::class);
+    // Sanctum authenticated user
+    Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+        return $request->user()->load('roles', 'permissions');
+    });
 
-    Route::apiResource('stock-counts', StockCountController::class);
-    Route::post('stock-counts/{stockCount}/start', [StockCountController::class, 'start']);
-    Route::post('stock-counts/{stockCount}/record', [StockCountController::class, 'record']);
-    Route::post('stock-counts/{stockCount}/approve', [StockCountController::class, 'approve']);
-    Route::post('stock-counts/{stockCount}/post', [StockCountController::class, 'post']);
+    // POSQUPRO API v1 - mirrors pos-next-js protected routes (requires auth:sanctum)
+    Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+        Route::apiResource('users', UserController::class);
+        Route::apiResource('customers', CustomerController::class);
+        Route::apiResource('suppliers', SupplierController::class);
+        Route::apiResource('categories', CategoryController::class);
+        Route::apiResource('unit-quantities', UnitQuantityController::class);
+        Route::apiResource('taxes', TaxController::class);
+        Route::apiResource('products', ProductController::class);
+        Route::post('products/{product}/photo', [ProductController::class, 'uploadPhoto']);
+        Route::post('products/{product}/generate-label', [ProductController::class, 'generateLabelPhoto']);
+        Route::apiResource('transactions', TransactionController::class);
+        Route::apiResource('payments', PaymentController::class);
+        Route::apiResource('expenses', ExpenseController::class);
+        Route::apiResource('inventory-histories', InventoryHistoryController::class);
 
-    Route::apiResource('activity-logs', ActivityLogController::class)->only(['index']);
-    Route::apiResource('branches', BranchController::class);
-    Route::apiResource('warehouses', WarehouseController::class);
-    Route::apiResource('settings', SettingController::class);
-    Route::get('settings/public', [SettingController::class, 'public']);
-    Route::get('settings/group/{group}', [SettingController::class, 'group']);
+        // New pos-next-js features
+        Route::apiResource('parked-transactions', ParkedTransactionController::class);
+        Route::post('parked-transactions/{id}/restore', [ParkedTransactionController::class, 'restore']);
+        Route::apiResource('registers', RegisterController::class);
+        Route::apiResource('register-sessions', RegisterSessionController::class)->only(['index']);
+        Route::post('register-sessions/open', [RegisterSessionController::class, 'open']);
+        Route::post('register-sessions/{session}/close', [RegisterSessionController::class, 'close']);
+        Route::get('register-sessions/current/{register}', [RegisterSessionController::class, 'current']);
 
-    Route::get('finance/summary', [FinanceController::class, 'summary']);
-    Route::get('reports/sales', [ReportController::class, 'sales']);
-    Route::get('reports/inventory', [ReportController::class, 'inventory']);
+        Route::apiResource('purchase-orders', PurchaseOrderController::class);
+        Route::post('purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive']);
+        Route::apiResource('supplier-invoices', SupplierInvoiceController::class);
 
-    // SaaS management (mirrors web Saas/Tenant/Plan/Invoice controllers, JSON for mobile)
-    Route::get('saas/dashboard', [SaasController::class, 'dashboard']);
-    Route::apiResource('tenants', TenantController::class)->names('api.tenants');
-    Route::post('tenants/{tenant}/suspend', [TenantController::class, 'suspend']);
-    Route::post('tenants/{tenant}/activate', [TenantController::class, 'activate']);
-    Route::apiResource('plans', PlanController::class)->names('api.plans');
-    Route::apiResource('invoices', InvoiceController::class)->except(['update']);
-    Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'markPaid']);
+        Route::apiResource('stock-counts', StockCountController::class);
+        Route::post('stock-counts/{stockCount}/start', [StockCountController::class, 'start']);
+        Route::post('stock-counts/{stockCount}/record', [StockCountController::class, 'record']);
+        Route::post('stock-counts/{stockCount}/approve', [StockCountController::class, 'approve']);
+        Route::post('stock-counts/{stockCount}/post', [StockCountController::class, 'post']);
+
+        Route::apiResource('activity-logs', ActivityLogController::class)->only(['index']);
+        Route::apiResource('branches', BranchController::class);
+        Route::apiResource('warehouses', WarehouseController::class);
+        Route::apiResource('settings', SettingController::class);
+        Route::get('settings/public', [SettingController::class, 'public']);
+        Route::get('settings/group/{group}', [SettingController::class, 'group']);
+
+        Route::get('finance/summary', [FinanceController::class, 'summary']);
+        Route::get('reports/sales', [ReportController::class, 'sales']);
+        Route::get('reports/inventory', [ReportController::class, 'inventory']);
+
+        // SaaS management (mirrors web Saas/Tenant/Plan/Invoice controllers, JSON for mobile)
+        Route::get('saas/dashboard', [SaasController::class, 'dashboard']);
+        Route::apiResource('tenants', TenantController::class);
+        Route::post('tenants/{tenant}/suspend', [TenantController::class, 'suspend']);
+        Route::post('tenants/{tenant}/activate', [TenantController::class, 'activate']);
+        Route::apiResource('plans', PlanController::class);
+        Route::apiResource('invoices', InvoiceController::class)->except(['update']);
+        Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'markPaid']);
+    });
 });
