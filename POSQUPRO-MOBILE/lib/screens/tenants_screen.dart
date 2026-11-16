@@ -18,7 +18,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
   int _page = 1;
   bool _hasMore = true;
 
-  static const _statuses = ['active', 'trial', 'suspended', 'inactive'];
+  static const _statuses = ['active', 'trial', 'suspended', 'expired', 'inactive'];
 
   @override
   void initState() {
@@ -82,6 +82,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
         'active' => 'Aktif',
         'trial' => 'Trial',
         'suspended' => 'Ditangguhkan',
+        'expired' => 'Kedaluwarsa',
         'inactive' => 'Nonaktif',
         _ => s ?? '-',
       };
@@ -103,8 +104,9 @@ class _TenantsScreenState extends State<TenantsScreen> {
     final name = TextEditingController(text: existing?['name']?.toString() ?? '');
     final email = TextEditingController(text: existing?['email']?.toString() ?? '');
     final phone = TextEditingController(text: existing?['phone']?.toString() ?? '');
-    final ownerName = TextEditingController();
-    final ownerEmail = TextEditingController();
+    final owner = existing?['owner'];
+    final ownerName = TextEditingController(text: owner is Map ? owner['name']?.toString() ?? '' : '');
+    final ownerEmail = TextEditingController(text: owner is Map ? owner['email']?.toString() ?? '' : '');
     final ownerPassword = TextEditingController();
     int? planId = existing?['plan_id'];
     String status = existing?['status']?.toString() ?? 'trial';
@@ -147,19 +149,24 @@ class _TenantsScreenState extends State<TenantsScreen> {
                         .toList(),
                     onChanged: (v) => setDialogState(() => status = v ?? 'trial'),
                   ),
-                ] else ...[
-                  const SizedBox(height: 12),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Akun Admin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(controller: ownerName, decoration: const InputDecoration(labelText: 'Nama Admin')),
-                  const SizedBox(height: 8),
-                  TextField(controller: ownerEmail, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email Admin')),
-                  const SizedBox(height: 8),
-                  TextField(controller: ownerPassword, obscureText: true, decoration: const InputDecoration(labelText: 'Password Admin (min 8, kosongkan = otomatis)')),
                 ],
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Akun Admin (Owner)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 8),
+                TextField(controller: ownerName, decoration: const InputDecoration(labelText: 'Nama Pemilik *')),
+                const SizedBox(height: 8),
+                TextField(controller: ownerEmail, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email Pemilik *')),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: ownerPassword,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: isEdit ? 'Password (kosongkan jika tidak diubah)' : 'Password Admin (min 8, kosongkan = otomatis)',
+                  ),
+                ),
               ],
             ),
           ),
@@ -178,6 +185,12 @@ class _TenantsScreenState extends State<TenantsScreen> {
       );
       return;
     }
+    if (ownerName.text.trim().isEmpty || ownerEmail.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama dan email pemilik wajib diisi'), backgroundColor: AppColors.danger),
+      );
+      return;
+    }
 
     try {
       final body = <String, dynamic>{
@@ -186,11 +199,9 @@ class _TenantsScreenState extends State<TenantsScreen> {
         'phone': phone.text.trim(),
         'plan_id': planId,
         if (isEdit) 'status': status,
-        if (!isEdit) ...{
-          'owner_name': ownerName.text.trim(),
-          'owner_email': ownerEmail.text.trim(),
-          if (ownerPassword.text.isNotEmpty) 'owner_password': ownerPassword.text.trim(),
-        },
+        'owner_name': ownerName.text.trim(),
+        'owner_email': ownerEmail.text.trim(),
+        if (ownerPassword.text.isNotEmpty) 'owner_password': ownerPassword.text.trim(),
       };
       final res = isEdit
           ? await _api.put('/v1/tenants/${existing['id']}', body: body)
@@ -199,11 +210,12 @@ class _TenantsScreenState extends State<TenantsScreen> {
       if (res['success'] == true) {
         _load(refresh: true);
         String extra = '';
-        if (!isEdit && res['data'] is Map && res['data']['owner_password'] != null) {
+        if (res['data'] is Map && res['data']['owner_password'] != null) {
           extra = '\nPassword admin: ${res['data']['owner_password']}';
         }
+        final base = isEdit ? 'Tenant diperbarui' : 'Tenant dibuat';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isEdit ? 'Tenant diperbarui' : 'Tenant dibuat.$extra'), backgroundColor: AppColors.success),
+          SnackBar(content: Text('$base$extra'), backgroundColor: AppColors.success),
         );
       } else {
         final errors = res['errors'];

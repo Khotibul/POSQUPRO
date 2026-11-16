@@ -396,4 +396,69 @@ public static class CrudCatalog
         CanCreate = false,
         CanDelete = false,
     };
+
+    public static CrudDefinition Tenants() => new()
+    {
+        Title = "Tenant",
+        Entity = "tenant",
+        Table = "tenants",
+        Resource = "tenants",
+        SelectSql = "SELECT * FROM tenants",
+        Fields =
+        [
+            new() { Key = "name", Label = "Nama Usaha", Required = true },
+            new() { Key = "slug", Label = "Slug", Placeholder = "otomatis dari nama" },
+            new() { Key = "email", Label = "Email Tenant" },
+            new() { Key = "phone", Label = "Telepon" },
+            new() { Key = "address", Label = "Alamat" },
+            new() { Key = "city", Label = "Kota" },
+            new() { Key = "province", Label = "Provinsi" },
+            new() { Key = "domain", Label = "Domain", Placeholder = "posqupro.co-id.id" },
+            new() { Key = "subdomain", Label = "Subdomain" },
+            new() { Key = "status", Label = "Status", Kind = FieldKind.TextChoice, TextOptions = ["trial", "active", "suspended", "expired", "inactive"] },
+            new() { Key = "trial_ends_at", Label = "Trial Berakhir", Kind = FieldKind.Date },
+            new() { Key = "owner_name", Label = "Nama Pemilik", Required = true },
+            new() { Key = "owner_email", Label = "Email Pemilik", Required = true },
+            new() { Key = "owner_password", Label = "Password Admin", Kind = FieldKind.Password },
+        ],
+        Columns =
+        [
+            new() { Key = "name", Header = "Tenant", Width = 200, Bold = true },
+            new() { Key = "owner_name", Header = "Owner", Width = 140 },
+            new() { Key = "owner_email", Header = "Email Owner", Width = 190 },
+            new() { Key = "status", Header = "Status", Width = 90 },
+            new() { Key = "email", Header = "Email", Width = 170 },
+            new() { Key = "phone", Header = "Telepon", Width = 110 },
+            new() { Key = "trial_ends_at", Header = "Trial s/d", Width = 100 },
+            new() { Key = "domain", Header = "Domain", Width = 140 },
+        ],
+        SearchColumns = ["name", "slug", "email", "owner_email"],
+        OrderBy = " ORDER BY name",
+        BeforeSave = (viewModel, values) =>
+        {
+            if (viewModel.Editing is not { Id: 0 })
+            {
+                if (string.IsNullOrWhiteSpace(values.GetValueOrDefault("owner_password")?.ToString()))
+                {
+                    values["owner_password"] = null;
+                }
+
+                return Task.CompletedTask;
+            }
+
+            if (string.IsNullOrWhiteSpace(values.GetValueOrDefault("owner_password")?.ToString()))
+            {
+                var generated = Guid.NewGuid().ToString("N")[..12];
+                values["owner_password"] = generated;
+                Ui.Info($"Password akun owner dibuat: {generated}\nCatat password ini; ubah kapan saja lewat menu Pengguna.");
+            }
+
+            if (values.GetValueOrDefault("trial_ends_at") is DateTime trialEnd && trialEnd.Date == DateTime.Today)
+            {
+                values["trial_ends_at"] = null;
+            }
+
+            return Task.CompletedTask;
+        },
+    };
 }

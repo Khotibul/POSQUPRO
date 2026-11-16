@@ -212,6 +212,7 @@ public sealed class SyncService(LocalDatabase database, ApiClient api, AppSettin
             "branch" => await PushMasterAsync("branches", "branches", item),
             "warehouse" => await PushMasterAsync("warehouses", "warehouses", item),
             "user" => await PushMasterAsync("users", "users", item),
+            "tenant" => await PushMasterAsync("tenants", "tenants", item),
             "register" => await PushMasterAsync("registers", "registers", item),
             "product" => await PushProductAsync(item),
             "expense" => await PushMasterAsync("expenses", "expenses", item),
@@ -861,6 +862,25 @@ public sealed class SyncService(LocalDatabase database, ApiClient api, AppSettin
             ["phone"] = Json.Str(row, "phone"),
             ["is_active"] = Json.Bool(row, "is_active", true),
         }));
+
+        await PullSimpleAsync("tenants", "tenants", "tenant", row => Task.FromResult<Dictionary<string, object?>>(new()
+        {
+            ["server_id"] = Json.Long(row, "id"),
+            ["name"] = Json.Str(row, "name") ?? "",
+            ["slug"] = Json.Str(row, "slug"),
+            ["email"] = Json.Str(row, "email"),
+            ["phone"] = Json.Str(row, "phone"),
+            ["address"] = Json.Str(row, "address"),
+            ["city"] = Json.Str(row, "city"),
+            ["province"] = Json.Str(row, "province"),
+            ["domain"] = Json.Str(row, "domain"),
+            ["subdomain"] = Json.Str(row, "subdomain"),
+            ["status"] = Json.Str(row, "status") ?? "trial",
+            ["trial_ends_at"] = Json.Date(row, "trial_ends_at"),
+            ["owner_name"] = Json.NestedStr(row, "owner", "name"),
+            ["owner_email"] = Json.NestedStr(row, "owner", "email"),
+            ["updated_at"] = Json.Date(row, "updated_at"),
+        }), maxPages: 5);
 
         await PullSimpleAsync("registers", "registers", "register", row => Task.FromResult<Dictionary<string, object?>>(new()
         {

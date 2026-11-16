@@ -564,6 +564,26 @@ public sealed class LocalDatabase
             updated_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS tenants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER UNIQUE,
+            name TEXT NOT NULL,
+            slug TEXT,
+            email TEXT,
+            phone TEXT,
+            address TEXT,
+            city TEXT,
+            province TEXT,
+            domain TEXT,
+            subdomain TEXT,
+            status TEXT NOT NULL DEFAULT 'trial',
+            trial_ends_at TEXT,
+            owner_name TEXT,
+            owner_email TEXT,
+            owner_password TEXT,
+            updated_at TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS registers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             server_id INTEGER UNIQUE,

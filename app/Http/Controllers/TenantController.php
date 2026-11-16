@@ -4,17 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Plan;
 use App\Models\Tenant;
-use App\Models\User;
+use App\Services\TenantOwnerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 
 class TenantController extends Controller
 {
+    public function __construct(private TenantOwnerService $ownerService) {}
+
     public function index(Request $request)
     {
         $q = trim((string) ($request->q ?? $request->search ?? ''));
@@ -64,64 +62,41 @@ class TenantController extends Controller
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:100',
             'province' => 'nullable|string|max:100',
-            'owner_name' => 'nullable|string|max:255',
-            'owner_email' => 'nullable|email|max:255|unique:users,email',
+            'owner_name' => 'required|string|max:255',
+            'owner_email' => 'required|email|max:255|unique:users,email',
             'owner_password' => 'nullable|string|min:8',
             'plan_id' => 'nullable|exists:plans,id',
         ]);
 
         $status = $validated['status'] ?? 'trial';
 
-        $tenant = Tenant::create([
-            'name' => $validated['name'],
-            'slug' => $validated['slug'] ?? null,
-            'domain' => $validated['domain'] ?? null,
-            'subdomain' => $validated['subdomain'] ?? null,
-            'email' => $validated['email'] ?? $validated['owner_email'] ?? null,
-            'phone' => $validated['phone'] ?? null,
-            'address' => $validated['address'] ?? null,
-            'city' => $validated['city'] ?? null,
-            'province' => $validated['province'] ?? null,
-            'plan_id' => $validated['plan_id'] ?? null,
-            'status' => $status,
-            'trial_ends_at' => $validated['trial_ends_at'] ?? ($status === 'trial' ? now()->addDays(14) : null),
-            'suspended_at' => $validated['suspended_at'] ?? null,
-        ]);
+        [$tenant, $plainPassword] = DB::transaction(function () use ($validated, $status) {
+            $tenant = Tenant::create([
+                'name' => $validated['name'],
+                'slug' => $validated['slug'] ?? null,
+                'domain' => $validated['domain'] ?? null,
+                'subdomain' => $validated['subdomain'] ?? null,
+                'email' => $validated['email'] ?? $validated['owner_email'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'province' => $validated['province'] ?? null,
+                'plan_id' => $validated['plan_id'] ?? null,
+                'status' => $status,
+                'trial_ends_at' => $validated['trial_ends_at'] ?? ($status === 'trial' ? now()->addDays(14) : null),
+                'suspended_at' => $validated['suspended_at'] ?? null,
+            ]);
 
-        // Create the tenant admin account (usable on website + desktop Java login)
-        $adminMessage = '';
-        if (! empty($validated['owner_email'])) {
-            $plainPassword = $validated['owner_password'] ?? Str::random(12);
-            $hashed = Hash::make($plainPassword);
-            $adminData = [
-                'name' => $validated['owner_name'] ?: $validated['name'].' Admin',
+            [, $plainPassword] = $this->ownerService->create($tenant, [
+                'name' => $validated['owner_name'],
                 'email' => $validated['owner_email'],
-                // Pass PLAIN so the model's 'hashed' cast hashes exactly once
-                'password' => $plainPassword,
-                'password_hash' => $hashed,
-                'branch_id' => 1,
-                'role' => 'ADMIN',
-                'active' => 1,
-                'tenant_id' => $tenant->id,
-            ];
-            if (! Schema::hasColumn('users', 'password')) {
-                unset($adminData['password']);
-            }
-            if (! Schema::hasColumn('users', 'is_active')) {
-                unset($adminData['is_active']);
-            } else {
-                $adminData['is_active'] = true;
-            }
-            if (! Schema::hasColumn('users', 'tenant_id')) {
-                unset($adminData['tenant_id']);
-            }
-            $admin = User::create($adminData);
-            if (class_exists(Role::class)) {
-                $admin->assignRole('Admin');
-            }
-            $tenant->update(['owner_id' => $admin->id]);
-            $adminMessage = " Akun admin: {$admin->email} / password: {$plainPassword}";
-        }
+                'password' => $validated['owner_password'] ?? null,
+            ]);
+
+            return [$tenant, $plainPassword];
+        });
+
+        $adminMessage = " Akun admin: {$validated['owner_email']} / password: {$plainPassword}";
 
         return redirect()->route('tenants.index')->with('success', "Tenant \"{$tenant->name}\" dibuat.{$adminMessage}");
     }
@@ -153,6 +128,9 @@ class TenantController extends Controller
             'trial_ends_at' => 'nullable|date',
             'suspended_at' => 'nullable|date',
             'plan_id' => 'nullable|exists:plans,id',
+            'owner_name' => 'sometimes|nullable|string|max:255',
+            'owner_email' => 'sometimes|nullable|email|max:255|unique:users,email,'.($tenant->owner_id ?? 0),
+            'owner_password' => 'sometimes|nullable|string|min:8',
         ]);
 
         // Slug is never cleared once set; keep the old value when omitted/empty.
@@ -160,9 +138,24 @@ class TenantController extends Controller
             unset($validated['slug']);
         }
 
-        $tenant->update($validated);
+        $ownerPassword = null;
+        DB::transaction(function () use ($request, $tenant, $validated, &$ownerPassword) {
+            $tenantFields = collect($validated)->except(['owner_name', 'owner_email', 'owner_password'])->all();
+            $tenant->update($tenantFields);
 
-        return back()->with('success', "Tenant \"{$tenant->name}\" diperbarui");
+            $ownerPassword = $this->ownerService->update($tenant, [
+                'name' => $request->input('owner_name'),
+                'email' => $request->input('owner_email'),
+                'password' => $request->input('owner_password'),
+            ]);
+        });
+
+        $message = "Tenant \"{$tenant->name}\" diperbarui";
+        if ($ownerPassword !== null) {
+            $message .= ". Password akun owner: {$ownerPassword}";
+        }
+
+        return back()->with('success', $message);
     }
 
     public function suspend(Tenant $tenant)

@@ -25,6 +25,7 @@ public static class PageFactory
         "expenses" => ("Pengeluaran", new CrudViewModel(CrudCatalog.Expenses(), shell)),
         "taxes" => ("Pajak", new CrudViewModel(CrudCatalog.Taxes(), shell)),
         "branches" => ("Cabang", new CrudViewModel(CrudCatalog.Branches(), shell)),
+        "tenants" => ("Tenant", new CrudViewModel(CrudCatalog.Tenants(), shell)),
         "users" => ("Pengguna & RBAC", new CrudViewModel(CrudCatalog.Users(), shell)),
         "activity-logs" => ("Log Aktivitas", new CrudViewModel(CrudCatalog.ActivityLogs(), shell)),
         "settings" => ("Pengaturan", new SettingsViewModel(shell)),

@@ -145,8 +145,8 @@ function openEdit(row) {
     address: row.address || '',
     city: row.city || '',
     province: row.province || '',
-    owner_name: '',
-    owner_email: '',
+    owner_name: row.owner?.name || '',
+    owner_email: row.owner?.email || '',
     owner_password: '',
     plan_id: row.plan_id ?? null,
   }
@@ -154,8 +154,12 @@ function openEdit(row) {
 }
 
 async function saveTenant() {
-  loading.value = true
   const isEdit = !!editing.value
+  if (!form.value.owner_name.trim() || !form.value.owner_email.trim()) {
+    error('Nama dan email pemilik wajib diisi')
+    return
+  }
+  loading.value = true
   try {
     const options = {
       onSuccess: () => { showModal.value = false; success(isEdit ? 'Tenant diperbarui' : 'Tenant dibuat') },
@@ -364,24 +368,25 @@ function deleteTenant(row) {
           </div>
         </div>
 
-        <template v-if="!editing">
-          <hr class="border-border" />
-          <p class="text-xs font-semibold uppercase text-muted-foreground">Akun Admin</p>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Nama Pemilik</label>
-              <input v-model="form.owner_name" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Email Pemilik</label>
-              <input v-model="form.owner_email" type="email" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Akun admin tenant (login web + desktop)" />
-            </div>
-            <div class="col-span-2">
-              <label class="block text-sm font-medium mb-1">Password Admin</label>
-              <input v-model="form.owner_password" type="password" minlength="8" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Min. 8 karakter (otomatis jika kosong)" />
-            </div>
+        <hr class="border-border" />
+        <p class="text-xs font-semibold uppercase text-muted-foreground">Akun Admin (Owner)</p>
+        <p class="text-xs text-muted-foreground">
+          {{ editing ? 'Ubah data login akun admin tenant. Kosongkan password jika tidak ingin mengganti.' : 'Akun admin untuk login ke website & desktop. Wajib diisi.' }}
+        </p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Nama Pemilik *</label>
+            <input v-model="form.owner_name" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm" required />
           </div>
-        </template>
+          <div>
+            <label class="block text-sm font-medium mb-1">Email Pemilik *</label>
+            <input v-model="form.owner_email" type="email" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Akun admin tenant (login web + desktop)" required />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-medium mb-1">Password Admin</label>
+            <input v-model="form.owner_password" type="password" minlength="8" class="w-full px-3 py-2 border border-border rounded-lg text-sm" :placeholder="editing ? 'Kosongkan jika tidak diubah (min. 8)' : 'Min. 8 karakter (otomatis jika kosong)'" />
+          </div>
+        </div>
       </div>
     </Modal>
   </AppLayout>

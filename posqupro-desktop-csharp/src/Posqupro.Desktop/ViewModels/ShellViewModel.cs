@@ -283,6 +283,7 @@ public sealed class ShellViewModel : ViewModelBase
             new() { Key = "taxes", Label = "Pajak", Section = "KEUANGAN", Glyph = "\uE8EC", Roles = ["Super Admin", "Admin", "Finance"] },
 
             new() { Key = "branches", Label = "Cabang", Section = "ADMINISTRASI", Glyph = "\uE80F", Roles = ["Super Admin", "Admin"] },
+            new() { Key = "tenants", Label = "Tenant", Section = "ADMINISTRASI", Glyph = "\uE80F", Roles = ["Super Admin", "Admin"] },
             new() { Key = "users", Label = "Pengguna & RBAC", Section = "ADMINISTRASI", Glyph = "\uE716", Roles = ["Super Admin", "Admin"] },
             new() { Key = "activity-logs", Label = "Log Aktivitas", Section = "ADMINISTRASI", Glyph = "\uE8A5", Roles = ["Super Admin", "Admin", "Finance"] },
             new() { Key = "settings", Label = "Pengaturan", Section = "ADMINISTRASI", Glyph = "\uE713", Shortcut = "F10", Roles = ["Super Admin", "Admin"] },

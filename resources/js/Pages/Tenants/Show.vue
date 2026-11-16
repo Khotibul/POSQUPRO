@@ -22,28 +22,10 @@ const props = defineProps({
 
 const showEditModal = ref(false)
 const loading = ref(false)
-const form = ref({
-  name: props.tenant.name,
-  slug: props.tenant.slug,
-  domain: props.tenant.domain,
-  subdomain: props.tenant.subdomain,
-  email: props.tenant.email,
-  phone: props.tenant.phone,
-  address: props.tenant.address,
-  city: props.tenant.city,
-  province: props.tenant.province,
-  status: props.tenant.status,
-  plan_id: props.tenant.plan_id,
-  trial_ends_at: (props.tenant.trial_ends_at || '').slice(0, 10),
-})
+const form = ref(blankForm())
 
-const statusColor = { active: 'success', trial: 'info', suspended: 'danger', inactive: 'warning', expired: 'default' }
-const statusLabel = { active: 'Aktif', trial: 'Trial', suspended: 'Suspended', inactive: 'Nonaktif', expired: 'Kedaluwarsa' }
-const invoiceColor = { paid: 'success', pending: 'warning', overdue: 'danger', draft: 'info' }
-const fc = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID')
-
-function openEdit() {
-  form.value = {
+function blankForm() {
+  return {
     name: props.tenant.name,
     slug: props.tenant.slug,
     domain: props.tenant.domain,
@@ -56,11 +38,27 @@ function openEdit() {
     status: props.tenant.status,
     plan_id: props.tenant.plan_id,
     trial_ends_at: (props.tenant.trial_ends_at || '').slice(0, 10),
+    owner_name: props.tenant.owner?.name || '',
+    owner_email: props.tenant.owner?.email || '',
+    owner_password: '',
   }
+}
+
+const statusColor = { active: 'success', trial: 'info', suspended: 'danger', inactive: 'warning', expired: 'default' }
+const statusLabel = { active: 'Aktif', trial: 'Trial', suspended: 'Suspended', inactive: 'Nonaktif', expired: 'Kedaluwarsa' }
+const invoiceColor = { paid: 'success', pending: 'warning', overdue: 'danger', draft: 'info' }
+const fc = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID')
+
+function openEdit() {
+  form.value = blankForm()
   showEditModal.value = true
 }
 
 async function saveEdit() {
+  if (!form.value.owner_name.trim() || !form.value.owner_email.trim()) {
+    error('Nama dan email pemilik wajib diisi')
+    return
+  }
   loading.value = true
   try {
     await router.put(`/tenants/${props.tenant.id}`, form.value, {
@@ -229,6 +227,24 @@ function activateTenant() {
               <option :value="null">Free</option>
               <option v-for="p in $page.props.plans || []" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
+          </div>
+        </div>
+
+        <hr class="border-border" />
+        <p class="text-xs font-semibold uppercase text-muted-foreground">Akun Admin (Owner)</p>
+        <p class="text-xs text-muted-foreground">Data login akun admin tenant. Kosongkan password jika tidak ingin mengganti.</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Nama Pemilik *</label>
+            <input v-model="form.owner_name" type="text" class="w-full px-3 py-2 border border-border rounded-lg text-sm" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Email Pemilik *</label>
+            <input v-model="form.owner_email" type="email" class="w-full px-3 py-2 border border-border rounded-lg text-sm" required />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-medium mb-1">Password Admin</label>
+            <input v-model="form.owner_password" type="password" minlength="8" class="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Kosongkan jika tidak diubah (min. 8)" />
           </div>
         </div>
       </div>
