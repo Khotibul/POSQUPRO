@@ -40,6 +40,8 @@ import 'screens/invoices_screen.dart';
 import 'screens/inventory_history_screen.dart';
 import 'screens/plans_screen.dart';
 import 'screens/payments_screen.dart';
+import 'screens/printer_settings_screen.dart';
+import 'screens/signup_screen.dart';
 
 Future<void> _bootstrapConfig() async {
   final cfg = await DatabaseConfigService().getConfig();
@@ -99,6 +101,8 @@ class PosquproApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => DbSetupScreen(onConfigured: () {}));
             case '/login':
               return MaterialPageRoute(builder: (_) => const LoginScreen());
+            case '/daftar':
+              return MaterialPageRoute(builder: (_) => const SignupScreen());
             case '/home':
               return MaterialPageRoute(builder: (_) => const HomeScreen());
             case '/pos':
@@ -145,6 +149,8 @@ class PosquproApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const StockScreen());
             case '/settings':
               return MaterialPageRoute(builder: (_) => const SettingsScreen());
+            case '/printer-settings':
+              return MaterialPageRoute(builder: (_) => const PrinterSettingsScreen());
             default:
               return MaterialPageRoute(builder: (_) => const LoginScreen());
           }

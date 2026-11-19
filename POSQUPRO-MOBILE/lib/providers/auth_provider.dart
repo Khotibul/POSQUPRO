@@ -79,6 +79,52 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Registrasi tenant + owner baru (pos-next-js register-tenant style).
+  /// Berhasil = token langsung disimpan, user login otomatis.
+  Future<bool> register({
+    required String name,
+    required String tenantName,
+    required String email,
+    String? phone,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final res = await _api.post(ApiConstants.registerUrl, body: {
+        'name': name,
+        'tenant_name': tenantName,
+        'email': email,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        'password': password,
+      });
+
+      if (res['success'] == true) {
+        final data = res['data'];
+        final token = data['token'];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(AppConstants.tokenKey, token);
+        _api.setToken(token);
+        _user = User.fromJson(data['user']);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
+      _error = res['message'] ?? 'Pendaftaran gagal';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Tidak dapat terhubung ke server';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _api.post(ApiConstants.logoutUrl);

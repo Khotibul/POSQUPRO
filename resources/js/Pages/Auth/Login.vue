@@ -75,7 +75,7 @@ const googleUrl = '/auth/google/redirect'
       <!-- Register link -->
       <p class="text-center text-sm text-muted-foreground mt-6">
         Belum punya akun?
-        <a :href="googleUrl" class="text-primary hover:underline font-medium">Daftar dengan Google</a>
+        <a href="/daftar" class="text-primary hover:underline font-medium">Daftar Akun Baru</a>
       </p>
     </div>
   </div>

@@ -47,6 +47,10 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
 
+    // Self-service signup (URI /daftar agar tidak bentrok dengan /register = Kas & Shift)
+    Route::get('/daftar', [AuthController::class, 'showRegister'])->name('daftar');
+    Route::post('/daftar', [AuthController::class, 'register'])->name('daftar.store');
+
     // Google OAuth
     Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
     Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');

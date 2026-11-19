@@ -31,7 +31,7 @@
                         <a href="{{ url('/login') }}" class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
                             Masuk
                         </a>
-                        <a href="{{ url('/login') }}" class="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                        <a href="{{ route('daftar') }}" class="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                             Daftar Sekarang
                         </a>
                     @endauth
@@ -55,7 +55,7 @@
                         <span class="font-semibold text-foreground">SIMPLE • SMART • SUCCESS</span> — Kelola POS kasir, inventory real-time, laporan analytics, dan multi-cabang dalam satu dashboard yang cepat.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-3">
-                        <a href="{{ url('/login') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                        <a href="{{ route('daftar') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                             Mulai Gratis →
                         </a>
                         <a href="#features" class="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
@@ -277,11 +277,11 @@
                                 @endforeach
                             </ul>
                             @if($plan->price <= 0)
-                                <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
+                                <a href="{{ route('daftar') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
                             @elseif($isPopular)
-                                <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih {{ $plan->name }}</a>
+                                <a href="{{ route('daftar') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih {{ $plan->name }}</a>
                             @else
-                                <a href="{{ url('/login') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Pilih {{ $plan->name }}</a>
+                                <a href="{{ route('daftar') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Pilih {{ $plan->name }}</a>
                             @endif
                         </div>
                     @endforeach
@@ -303,7 +303,7 @@
                     </div>
                     <h3 class="font-semibold">Web App</h3>
                     <p class="text-sm text-muted-foreground mt-1 mb-4">Akses dari browser, support semua device</p>
-                    <a href="{{ url('/login') }}" class="inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                    <a href="{{ route('daftar') }}" class="inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
                         Buka Sekarang
                     </a>
                 </div>
@@ -340,7 +340,7 @@
                 <h2 class="text-2xl sm:text-3xl font-bold">Siap Scale Toko Anda?</h2>
                 <p class="text-primary-foreground/80 mt-2 max-w-2xl mx-auto text-sm sm:text-base">Bergabung dengan 500+ pemilik toko yang sudah pakai POSQUPRO. Setup 2 menit, langsung jualan.</p>
                 <div class="flex flex-col sm:flex-row gap-3 justify-center mt-6">
-                    <a href="{{ url('/login') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-background text-foreground px-8 font-medium hover:bg-background/90">Daftar Gratis</a>
+                    <a href="{{ route('daftar') }}" class="inline-flex h-11 items-center justify-center rounded-md bg-background text-foreground px-8 font-medium hover:bg-background/90">Daftar Gratis</a>
                     <a href="#about" class="inline-flex h-11 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary px-8 font-medium hover:bg-primary-foreground/10">Tentang Kami</a>
                 </div>
             </div>

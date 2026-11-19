@@ -101,10 +101,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _Section(
               title: 'Printer',
               children: [
+                _NavTile(
+                  icon: Icons.print_rounded,
+                  title: 'Pengaturan Printer',
+                  onTap: () => Navigator.pushNamed(context, '/printer-settings'),
+                ),
                 _Tile(icon: Icons.print_rounded, title: 'Tipe Koneksi', value: settings.getSetting('printer.connection.type', defaultValue: '-')),
                 _Tile(icon: Icons.bluetooth_rounded, title: 'Nama Printer', value: settings.getSetting('printer.name', defaultValue: '-')),
                 _Tile(icon: Icons.description_rounded, title: 'Ukuran Kertas', value: settings.getSetting('printer.paper.width', defaultValue: '-')),
                 _Tile(icon: Icons.text_fields_rounded, title: 'Ukuran Font', value: settings.getSetting('printer.font.size', defaultValue: '-')),
+                _Tile(
+                  icon: Icons.print_outlined,
+                  title: 'Auto Print',
+                  value: settings.getSetting('printer.auto.print', defaultValue: 'false') == 'true' ? 'Aktif' : 'Nonaktif',
+                ),
               ],
             ),
             const SizedBox(height: 16),

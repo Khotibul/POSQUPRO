@@ -2,6 +2,7 @@ class ApiConstants {
   static const String productionBaseUrl = 'https://posqupro.co-id.id/api';
   static String baseUrl = _detectBaseUrl();
   static const String loginUrl = '/v1/login';
+  static const String registerUrl = '/v1/register';
   static const String logoutUrl = '/v1/logout';
   static const String userUrl = '/user';
 

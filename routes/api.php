@@ -28,7 +28,9 @@ use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UnitQuantityController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\TenantOwnerService;
 use App\Support\LegacyPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +47,58 @@ Route::name('api.')->group(function () {
     Route::post('/payment/update', [LicenseController::class, 'payment']);
 
     // Mobile Auth (Sanctum token-based)
+    // Public self-service register: tenant + owner user, returns same shape as login
+    Route::post('/v1/register', function (Request $request) {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'tenant_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+
+        $user = DB::transaction(function () use ($validated) {
+            $tenant = Tenant::create([
+                'name' => $validated['tenant_name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'status' => 'trial',
+                'trial_ends_at' => now()->addDays(14),
+            ]);
+
+            [$owner] = app(TenantOwnerService::class)->create($tenant, [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+            ]);
+
+            return $owner;
+        });
+
+        $token = $user->createToken('mobile-app')->plainTextToken;
+        $tenant = ($user->tenant_id ?? null) ? $user->tenant()->with('plan')->first() : null;
+
+        return response()->json([
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'avatar' => $user->avatar ?? null,
+                'tenant_id' => $user->tenant_id ?? null,
+            ],
+            'tenant' => $tenant ? [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
+                'status' => $tenant->status,
+                'license_code' => $tenant->license_code ?? null,
+                'plan' => $tenant->plan ? ['id' => $tenant->plan->id, 'name' => $tenant->plan->name] : null,
+            ] : null,
+        ], 201);
+    });
+
     Route::post('/v1/login', function (Request $request) {
         $request->validate([
             'email' => ['required', 'email'],

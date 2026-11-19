@@ -101,7 +101,26 @@ class SettingsStore
         $public['product.pos.custom.price.enabled'] ??= self::get('product.pos.custom.price.enabled', 'false');
         $public['pos.editPrice.autoUpdate.enabled'] ??= self::get('pos.editPrice.autoUpdate.enabled', 'true');
 
+        // Pengaturan klien non-sensitif yang mungkin tersimpan sebelum kolom
+        // is_public diisi (legacy web form / seed lama).
+        foreach (self::all() as $row) {
+            $key = $row['key'] ?? null;
+            if ($key !== null && self::isClientFacingKey($key) && ! isset($public[$key])) {
+                $public[$key] = $row['value'] ?? '';
+            }
+        }
+
         return $public;
+    }
+
+    /**
+     * Keys that are safe to expose to unauthenticated/public clients
+     * (mobile app reads them via GET /v1/settings/public after login anyway;
+     * the list only contains non-sensitive display/POS flags).
+     */
+    private static function isClientFacingKey(string $key): bool
+    {
+        return (bool) preg_match('/^(printer|store|receipt|pos|product\.pos)\./', $key);
     }
 
     /**
@@ -116,6 +135,11 @@ class SettingsStore
             $row = ['value' => $value, 'group' => $group];
             if (Schema::hasColumn('settings', 'updated_at')) {
                 $row['updated_at'] = now();
+            }
+            // Client-facing settings (printer/store/receipt/POS flags) must be
+            // readable via GET /v1/settings/public on first write.
+            if (Schema::hasColumn('settings', 'is_public') && self::isClientFacingKey($key)) {
+                $row['is_public'] = true;
             }
             if ($exists) {
                 DB::table('settings')->where('key', $key)->update($row);

@@ -114,7 +114,7 @@ class CustomerProvider extends ChangeNotifier {
     try {
       final res = await _api.post(ApiConstants.customers, body: data);
       if (res['success'] == true) {
-        final customer = Customer.fromJson(res['data']);
+        final customer = Customer.fromJson(ApiService.unwrapResource(res));
         _customers.insert(0, customer);
         _isLoading = false;
         notifyListeners();
@@ -138,7 +138,7 @@ class CustomerProvider extends ChangeNotifier {
     try {
       final res = await _api.put('${ApiConstants.customers}/$id', body: data);
       if (res['success'] == true) {
-        final customer = Customer.fromJson(res['data']);
+        final customer = Customer.fromJson(ApiService.unwrapResource(res));
         final index = _customers.indexWhere((c) => c.id == id);
         if (index >= 0) _customers[index] = customer;
         _isLoading = false;

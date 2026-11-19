@@ -163,6 +163,19 @@ class ApiService {
     });
   }
 
+  /// Endpoint sumber tunggal (GET/POST/PUT resource) membungkus objek dengan
+  /// `{"data": {...}}`. Buka satu lapis bungkusan agar model menerima objek
+  /// yang benar, bukan map wrapper-nya (yang menghasilkan id=0 / name='').
+  static Map<String, dynamic> unwrapResource(Map<String, dynamic> res) {
+    final data = res['data'];
+    if (data is! Map) return <String, dynamic>{};
+    final inner = data['data'];
+    if (inner is Map) {
+      return Map<String, dynamic>.from(inner);
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   Map<String, dynamic> _handleResponse(http.Response response) {
     dynamic body;
     try {

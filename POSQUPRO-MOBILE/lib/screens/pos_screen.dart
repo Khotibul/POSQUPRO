@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/api_service.dart';
+import '../core/printer/bluetooth_printer_service.dart';
+import '../core/printer/receipt_builder.dart';
 import '../core/theme.dart';
 import '../providers/product_provider.dart';
 import '../providers/cart_provider.dart';
@@ -10,6 +12,7 @@ import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/customer.dart';
 import '../models/product.dart';
+import '../models/transaction.dart';
 import '../widgets/pressable.dart';
 
 class PosScreen extends StatefulWidget {
@@ -57,7 +60,7 @@ class _PosScreenState extends State<PosScreen> {
         final api = ApiService();
         final pres = await api.get('/v1/products/$productId');
         if (pres['success'] == true && pres['data'] is Map) {
-          product = Product.fromJson(Map<String, dynamic>.from(pres['data']));
+          product = Product.fromJson(ApiService.unwrapResource(pres));
         }
       } catch (_) {}
       product ??= products.products.where((p) => p.id == productId).firstOrNull;
@@ -718,7 +721,7 @@ class _CartEditorSheetState extends State<_CartEditorSheet> {
       });
       if (!mounted) return;
       if (res['success'] == true) {
-        context.read<ProductProvider>().loadProducts(refresh: true);
+        context.read<ProductProvider>().loadAllProductsForPos();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Harga produk diupdate'), backgroundColor: AppColors.success),
@@ -1238,6 +1241,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     }
 
     final change = _isCredit ? 0.0 : _change;
+    // Snapshot struk sebelum keranjang dikosongkan (auto-print).
+    final receiptText = _buildReceiptText(tx, change: change);
     cart.clear();
     products.loadAllProductsForPos();
     navigator.pop();
@@ -1247,6 +1252,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         backgroundColor: AppColors.success,
       ),
     );
+    if (receiptText != null) {
+      _sendAutoPrint(receiptText);
+    }
     await showDialog(
       context: dialogContext,
       builder: (dialogContext) => AlertDialog(
@@ -1273,5 +1281,80 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         ],
       ),
     );
+  }
+
+  /// Susun teks struk dari keranjang saat ini. Null bila auto-print nonaktif
+  /// atau koneksi printer bukan Bluetooth.
+  String? _buildReceiptText(Transaction tx, {required double change}) {
+    if (!mounted) return null;
+    final settings = context.read<SettingsProvider>();
+    if (settings.getSetting('printer.auto.print', defaultValue: 'false') != 'true') return null;
+    if (settings.getSetting('printer.connection.type', defaultValue: 'bluetooth') != 'bluetooth') return null;
+
+    final cart = context.read<CartProvider>();
+    final header = settings.getSetting('receipt.header', defaultValue: '').isNotEmpty
+        ? settings.getSetting('receipt.header')
+        : settings.getSetting('store.name', defaultValue: 'POSQUPRO');
+
+    return ReceiptBuilder.build(
+      receipt: ReceiptData(
+        invoiceNo: tx.invoiceNumber ?? '#${tx.id}',
+        createdAt: tx.createdAt ?? DateTime.now(),
+        status: _isCredit ? 'credit' : 'completed',
+        subtotal: cart.subtotal,
+        discount: cart.totalDiscount,
+        tax: tx.taxAmount,
+        total: cart.total,
+        paid: _isCredit ? 0.0 : _paid,
+        change: change,
+        paymentMethod: _paymentMethod,
+        items: cart.items
+            .map((item) => ReceiptLine(
+                  name: item.product.name,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  discount: item.discount,
+                  sku: item.product.sku,
+                ))
+            .toList(),
+      ),
+      headerTitle: header,
+      footerNote: settings.getSetting('receipt.footer', defaultValue: ''),
+      paperWidth: settings.getSetting('printer.paper.width', defaultValue: '80'),
+      showSku: settings.getSetting('printer.show.sku', defaultValue: 'true') != 'false',
+      showDiscount: settings.getSetting('printer.show.discount', defaultValue: 'true') != 'false',
+      showTax: settings.getSetting('printer.show.tax', defaultValue: 'true') != 'false',
+      showUnitPrice: settings.getSetting('printer.show.unitPrice', defaultValue: 'true') != 'false',
+    );
+  }
+
+  /// Fire-and-forget: jangan blokir UI kasir bila printer bermasalah.
+  Future<void> _sendAutoPrint(String receiptText) async {
+    if (!mounted) return;
+    final settings = context.read<SettingsProvider>();
+    try {
+      await BluetoothPrinterService.printText(
+        receiptText,
+        deviceName: settings.getSetting('printer.name', defaultValue: ''),
+        deviceAddress: settings.getSetting('printer.bluetooth.mac', defaultValue: ''),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Struk terkirim ke printer'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 }

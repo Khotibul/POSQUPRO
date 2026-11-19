@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\TenantOwnerService;
 use App\Support\LegacyPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +19,54 @@ class AuthController extends Controller
     public function showLogin()
     {
         return Inertia::render('Auth/Login');
+    }
+
+    public function showRegister()
+    {
+        return Inertia::render('Auth/Register');
+    }
+
+    /**
+     * Self-service registration (mirrors pos-next-js register-tenant):
+     * create tenant + owner user in one transaction, then auto-login.
+     */
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'store_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'agree' => ['accepted'],
+        ]);
+
+        $user = DB::transaction(function () use ($validated) {
+            $tenant = Tenant::create([
+                'name' => $validated['store_name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'status' => 'trial',
+                'trial_ends_at' => now()->addDays(14),
+            ]);
+
+            [$owner] = app(TenantOwnerService::class)->create($tenant, [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+            ]);
+
+            return $owner;
+        });
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $user->update(['last_login_at' => now()]);
+        }
+
+        return redirect('/dashboard');
     }
 
     public function login(Request $request)

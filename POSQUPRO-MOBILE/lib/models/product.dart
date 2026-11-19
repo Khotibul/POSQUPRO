@@ -51,28 +51,63 @@ class Product {
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      sku: json['sku'],
-      barcode: json['barcode'],
-      type: json['type'],
-      categoryId: json['category_id'],
-      categoryName: json['category']?['name'],
-      unitQuantityId: json['unit_quantity_id'],
-      unitName: json['unit_quantity']?['name'],
-      taxId: json['tax_id'],
-      taxName: json['tax']?['name'],
-      supplierId: json['supplier_id'],
-      supplierName: json['supplier']?['name'],
-      costPrice: double.tryParse(json['cost_price']?.toString() ?? '0') ?? 0,
-      sellingPrice: double.tryParse(json['selling_price']?.toString() ?? json['price']?.toString() ?? '0') ?? 0,
-      wholesalePrice: double.tryParse(json['wholesale_price']?.toString() ?? '0') ?? 0,
-      minWholesale: json['min_wholesale'] ?? 0,
-      stock: json['stock'] ?? 0,
-      minStock: json['min_stock'] ?? 0,
-      image: json['image'] ?? json['photo'],
-      description: json['description'],
-      isActive: json['is_active'] ?? json['active'] ?? true,
+      id: _toInt(json['id']) ?? 0,
+      name: json['name']?.toString() ?? '',
+      sku: json['sku']?.toString(),
+      barcode: json['barcode']?.toString(),
+      type: json['type']?.toString(),
+      categoryId: _toInt(json['category_id']),
+      categoryName: _relationName(json['category']) ?? json['category_text']?.toString(),
+      unitQuantityId: _toInt(json['unit_quantity_id']),
+      unitName: _relationName(json['unit_quantity']),
+      taxId: _toInt(json['tax_id']),
+      taxName: _relationName(json['tax']),
+      supplierId: _toInt(json['supplier_id']),
+      supplierName: _relationName(json['supplier']),
+      costPrice: _toDouble(json['cost_price'] ?? json['cost']),
+      sellingPrice: _toDouble(json['selling_price'] ?? json['price']),
+      wholesalePrice: _toDouble(json['wholesale_price']),
+      minWholesale: _toInt(json['min_wholesale']) ?? 0,
+      stock: _toDouble(json['stock']).round(),
+      minStock: _toDouble(json['min_stock']).round(),
+      image: json['image']?.toString() ?? json['photo']?.toString(),
+      description: json['description']?.toString(),
+      isActive: _toBool(json['is_active'] ?? json['active'], fallback: true),
     );
+  }
+
+  /// API mengembalikan relasi sebagai objek {name:...}, tetapi kolom legacy
+  /// `products.category` (varchar) bisa menimpanya menjadi string polos.
+  static String? _relationName(dynamic value) {
+    if (value is Map) {
+      return value['name']?.toString();
+    }
+    if (value is String && value.isNotEmpty) {
+      return value;
+    }
+    return null;
+  }
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
+  }
+
+  static bool _toBool(dynamic value, {required bool fallback}) {
+    if (value == null) return fallback;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final s = value.toString().toLowerCase();
+    if (s == '1' || s == 'true') return true;
+    if (s == '0' || s == 'false') return false;
+    return fallback;
   }
 }

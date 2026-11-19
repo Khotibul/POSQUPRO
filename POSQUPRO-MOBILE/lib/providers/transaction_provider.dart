@@ -91,7 +91,7 @@ class TransactionProvider extends ChangeNotifier {
       final res = await _api.post(ApiConstants.transactions, body: body);
 
       if (res['success'] == true) {
-        final transaction = Transaction.fromJson(res['data']);
+        final transaction = Transaction.fromJson(ApiService.unwrapResource(res));
         _transactions.insert(0, transaction);
         _isLoading = false;
         notifyListeners();

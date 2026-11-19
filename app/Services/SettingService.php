@@ -42,6 +42,10 @@ class SettingService
                 }
                 DB::table('settings')->insert($row);
             }
+            // Make client-facing keys readable via /v1/settings/public.
+            if (Schema::hasColumn('settings', 'is_public') && preg_match('/^(printer|store|receipt|pos|product\.pos)\./', $key)) {
+                DB::table('settings')->where('key', $key)->update(['is_public' => true]);
+            }
         } else {
             SettingsStore::set($key, $value, $group);
         }

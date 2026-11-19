@@ -16,6 +16,7 @@ class TransactionItemResource extends JsonResource
             'unit_price' => $this->unit_price,
             'discount' => $this->discount,
             'subtotal' => $this->subtotal,
+            'total' => $this->subtotal,
         ];
     }
 }

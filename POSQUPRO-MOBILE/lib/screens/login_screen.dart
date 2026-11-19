@@ -281,6 +281,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 18),
                         Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.pushNamed(context, '/daftar'),
+                            child: RichText(
+                              text: TextSpan(
+                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                children: [
+                                  const TextSpan(text: 'Belum punya akun? '),
+                                  TextSpan(
+                                    text: 'Daftar Sekarang',
+                                    style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(

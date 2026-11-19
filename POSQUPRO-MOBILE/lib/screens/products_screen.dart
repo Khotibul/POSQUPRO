@@ -87,15 +87,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
           Expanded(
             child: products.isLoading && products.products.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : products.products.isEmpty
-                    ? const Center(child: Text('Produk tidak ditemukan', style: TextStyle(color: AppColors.textMuted)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: products.products.length,
-                        itemBuilder: (context, index) => _buildProductCard(context, products.products[index]),
-                      ),
+                : products.error != null && products.products.isEmpty
+                    ? _buildErrorState(products)
+                    : products.products.isEmpty
+                        ? const Center(child: Text('Produk tidak ditemukan', style: TextStyle(color: AppColors.textMuted)))
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: products.products.length,
+                            itemBuilder: (context, index) => _buildProductCard(context, products.products[index]),
+                          ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ProductProvider products) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, size: 42, color: AppColors.danger),
+            const SizedBox(height: 10),
+            Text(
+              products.error ?? 'Gagal memuat produk',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: () {
+                products.loadProducts(refresh: true);
+                products.loadCategories();
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
       ),
     );
   }
