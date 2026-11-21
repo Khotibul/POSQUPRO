@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\BillingController as ApiBillingController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CustomerController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\InventoryHistoryController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\IpaymuController;
 use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\ParkedTransactionController;
 use App\Http\Controllers\Api\PaymentController;
@@ -30,6 +32,8 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\PlanService;
+use App\Services\SubscriptionService;
 use App\Services\TenantOwnerService;
 use App\Support\LegacyPassword;
 use Illuminate\Http\Request;
@@ -40,6 +44,9 @@ use Illuminate\Support\Facades\Schema;
 
 Route::name('api.')->group(function () {
     Route::get('/health', fn () => ['status' => 'ok', 'app' => 'POSQUPRO']);
+
+    // iPaymu webhook (signature-verified, no auth/CSRF)
+    Route::post('/ipaymu/callback', [IpaymuController::class, 'callback']);
 
     // Desktop (Java SaaSClient) license + monitoring endpoints, X-API-Key auth
     Route::post('/license/validate', [LicenseController::class, 'validate']);
@@ -63,7 +70,6 @@ Route::name('api.')->group(function () {
                 'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
                 'status' => 'trial',
-                'trial_ends_at' => now()->addDays(14),
             ]);
 
             [$owner] = app(TenantOwnerService::class)->create($tenant, [
@@ -71,6 +77,9 @@ Route::name('api.')->group(function () {
                 'email' => $validated['email'],
                 'password' => $validated['password'],
             ]);
+
+            // Demo 30 hari dengan seluruh fitur terbuka.
+            app(SubscriptionService::class)->startTrial($tenant);
 
             return $owner;
         });
@@ -95,6 +104,8 @@ Route::name('api.')->group(function () {
                 'status' => $tenant->status,
                 'license_code' => $tenant->license_code ?? null,
                 'plan' => $tenant->plan ? ['id' => $tenant->plan->id, 'name' => $tenant->plan->name] : null,
+                'trial_ends_at' => $tenant->trial_ends_at?->toIso8601String(),
+                'subscription' => app(PlanService::class)->setTenant($tenant)->getSubscriptionSummary(),
             ] : null,
         ], 201);
     });
@@ -162,6 +173,8 @@ Route::name('api.')->group(function () {
                 'status' => $tenant->status,
                 'license_code' => $tenant->license_code ?? null,
                 'plan' => $tenant->plan ? ['id' => $tenant->plan->id, 'name' => $tenant->plan->name] : null,
+                'trial_ends_at' => $tenant->trial_ends_at?->toIso8601String(),
+                'subscription' => app(PlanService::class)->setTenant($tenant)->getSubscriptionSummary(),
             ] : null,
         ]);
     });
@@ -177,20 +190,49 @@ Route::name('api.')->group(function () {
         return $request->user()->load('roles', 'permissions');
     });
 
-    // POSQUPRO API v1 - mirrors pos-next-js protected routes (requires auth:sanctum)
+    // Subscription status + billing stay reachable when a trial/plan has expired,
+    // so mobile and desktop clients can show the expiry screen and pay.
     Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
-        Route::apiResource('users', UserController::class);
-        Route::apiResource('customers', CustomerController::class);
-        Route::apiResource('suppliers', SupplierController::class);
+        Route::get('subscription', function (Request $request) {
+            $tenant = $request->user()->tenant;
+            if (! $tenant) {
+                return response()->json(['subscription' => null, 'limits' => null]);
+            }
+
+            $planService = app(PlanService::class)->setTenant($tenant);
+
+            return response()->json([
+                'status' => $tenant->status,
+                'subscription' => $planService->getSubscriptionSummary(),
+                'plan' => $tenant->plan ? [
+                    'id' => $tenant->plan->id,
+                    'name' => $tenant->plan->name,
+                    'slug' => $tenant->plan->slug,
+                ] : null,
+                'limits' => $planService->getLimitsSummary(),
+                'features' => $planService->getFeatures(),
+                'days_remaining' => app(SubscriptionService::class)->daysRemaining($tenant),
+            ]);
+        });
+
+        Route::get('billing', [ApiBillingController::class, 'index']);
+        Route::post('billing/checkout', [ApiBillingController::class, 'checkout']);
+    });
+
+    // POSQUPRO API v1 - mirrors pos-next-js protected routes (requires auth:sanctum)
+    Route::prefix('v1')->middleware(['auth:sanctum', 'subscription.active'])->group(function () {
+        Route::apiResource('users', UserController::class)->middleware('plan.feature:users');
+        Route::apiResource('customers', CustomerController::class)->middleware('plan.feature:customers');
+        Route::apiResource('suppliers', SupplierController::class)->middleware('plan.feature:suppliers');
         Route::apiResource('categories', CategoryController::class);
         Route::apiResource('unit-quantities', UnitQuantityController::class);
         Route::apiResource('taxes', TaxController::class);
         Route::apiResource('products', ProductController::class);
         Route::post('products/{product}/photo', [ProductController::class, 'uploadPhoto']);
         Route::post('products/{product}/generate-label', [ProductController::class, 'generateLabelPhoto']);
-        Route::apiResource('transactions', TransactionController::class);
+        Route::apiResource('transactions', TransactionController::class)->middleware('plan.feature:pos');
         Route::apiResource('payments', PaymentController::class);
-        Route::apiResource('expenses', ExpenseController::class);
+        Route::apiResource('expenses', ExpenseController::class)->middleware('plan.feature:expenses');
         Route::apiResource('inventory-histories', InventoryHistoryController::class);
 
         // New pos-next-js features
@@ -202,26 +244,33 @@ Route::name('api.')->group(function () {
         Route::post('register-sessions/{session}/close', [RegisterSessionController::class, 'close']);
         Route::get('register-sessions/current/{register}', [RegisterSessionController::class, 'current']);
 
-        Route::apiResource('purchase-orders', PurchaseOrderController::class);
-        Route::post('purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive']);
-        Route::apiResource('supplier-invoices', SupplierInvoiceController::class);
+        Route::middleware('plan.feature:purchase_orders')->group(function () {
+            Route::apiResource('purchase-orders', PurchaseOrderController::class);
+            Route::post('purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive']);
+            Route::apiResource('supplier-invoices', SupplierInvoiceController::class);
+        });
 
-        Route::apiResource('stock-counts', StockCountController::class);
-        Route::post('stock-counts/{stockCount}/start', [StockCountController::class, 'start']);
-        Route::post('stock-counts/{stockCount}/record', [StockCountController::class, 'record']);
-        Route::post('stock-counts/{stockCount}/approve', [StockCountController::class, 'approve']);
-        Route::post('stock-counts/{stockCount}/post', [StockCountController::class, 'post']);
+        Route::middleware('plan.feature:stock_counts')->group(function () {
+            Route::apiResource('stock-counts', StockCountController::class);
+            Route::post('stock-counts/{stockCount}/start', [StockCountController::class, 'start']);
+            Route::post('stock-counts/{stockCount}/record', [StockCountController::class, 'record']);
+            Route::post('stock-counts/{stockCount}/approve', [StockCountController::class, 'approve']);
+            Route::post('stock-counts/{stockCount}/post', [StockCountController::class, 'post']);
+        });
 
-        Route::apiResource('activity-logs', ActivityLogController::class)->only(['index']);
-        Route::apiResource('branches', BranchController::class);
-        Route::apiResource('warehouses', WarehouseController::class);
+        Route::apiResource('activity-logs', ActivityLogController::class)->only(['index'])->middleware('plan.feature:reports');
+        Route::apiResource('branches', BranchController::class)->middleware('plan.feature:multi_branch');
+        Route::apiResource('warehouses', WarehouseController::class)->middleware('plan.feature:multi_branch');
         Route::apiResource('settings', SettingController::class);
         Route::get('settings/public', [SettingController::class, 'public']);
         Route::get('settings/group/{group}', [SettingController::class, 'group']);
 
-        Route::get('finance/summary', [FinanceController::class, 'summary']);
-        Route::get('reports/sales', [ReportController::class, 'sales']);
-        Route::get('reports/inventory', [ReportController::class, 'inventory']);
+        Route::middleware('plan.feature:reports')->group(function () {
+            Route::get('finance/summary', [FinanceController::class, 'summary']);
+            Route::get('reports/sales', [ReportController::class, 'sales']);
+            Route::get('reports/inventory', [ReportController::class, 'inventory']);
+        });
+
 
         // SaaS management (mirrors web Saas/Tenant/Plan/Invoice controllers, JSON for mobile)
         Route::get('saas/dashboard', [SaasController::class, 'dashboard']);

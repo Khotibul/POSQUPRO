@@ -21,16 +21,34 @@ const editingPlan = ref(null)
 const loading = ref(false)
 const form = ref({
   name: '', slug: '', description: '', price: 0, price_yearly: 0,
-  trial_days: 14, max_users: 1, max_products: 100, max_branches: 1,
+  trial_days: 30, max_users: 3, max_products: 1000, max_customers: 500,
+  max_transactions_per_month: 3000, max_branches: 1,
   features: [], is_active: true,
 })
 
-const featureOptions = ['pos', 'inventory', 'reports', 'purchase_orders', 'stock_counts', 'multi_branch', 'api_access', 'priority_support']
+const featureOptions = [
+  'pos', 'products', 'customers', 'suppliers', 'inventory', 'expenses',
+  'users', 'reports', 'purchase_orders', 'stock_counts', 'multi_branch',
+  'api_access', 'priority_support',
+]
+
+const featureLabels = {
+  pos: 'POS / Kasir', products: 'Produk & Stok', customers: 'Pelanggan',
+  suppliers: 'Supplier', inventory: 'Inventory', expenses: 'Pengeluaran',
+  users: 'Pengguna & RBAC', reports: 'Laporan & Analitik',
+  purchase_orders: 'Purchase Order', stock_counts: 'Stock Opname',
+  multi_branch: 'Multi Cabang & Gudang', api_access: 'Akses API / Mobile',
+  priority_support: 'Priority Support',
+}
 const fc = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID')
 
 function openCreate() {
   editingPlan.value = null
-  form.value = { name: '', slug: '', description: '', price: 0, price_yearly: 0, trial_days: 14, max_users: 1, max_products: 100, max_branches: 1, features: [], is_active: true }
+  form.value = {
+    name: '', slug: '', description: '', price: 0, price_yearly: 0, trial_days: 30,
+    max_users: 3, max_products: 1000, max_customers: 500,
+    max_transactions_per_month: 3000, max_branches: 1, features: [], is_active: true,
+  }
   showModal.value = true
 }
 
@@ -40,7 +58,9 @@ function openEdit(plan) {
     name: plan.name, slug: plan.slug, description: plan.description || '',
     price: plan.price, price_yearly: plan.price_yearly || 0,
     trial_days: plan.trial_days || 0, max_users: plan.max_users,
-    max_products: plan.max_products, max_branches: plan.max_branches,
+    max_products: plan.max_products, max_customers: plan.max_customers ?? 0,
+    max_transactions_per_month: plan.max_transactions_per_month ?? 0,
+    max_branches: plan.max_branches,
     features: plan.features || [], is_active: plan.is_active,
   }
   showModal.value = true
@@ -81,7 +101,7 @@ function toggleFeature(f) {
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold">Paket Langganan</h1>
-          <p class="text-sm text-muted-foreground">Kelola paket billing SaaS</p>
+          <p class="text-sm text-muted-foreground">Atur harga, fitur, permission, dan kuota data tiap paket</p>
         </div>
         <Button @click="openCreate"><PlusIcon class="w-4 h-4" /> Tambah Paket</Button>
       </div>
@@ -115,13 +135,15 @@ function toggleFeature(f) {
 
           <div class="space-y-2 text-sm mb-4">
             <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>Maks {{ plan.max_users }} user</span></div>
-            <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>Maks {{ plan.max_products }} produk</span></div>
-            <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>Maks {{ plan.max_branches }} cabang</span></div>
+            <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>{{ plan.max_products ? 'Maks ' + plan.max_products : 'Unlimited' }} produk</span></div>
+            <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>{{ plan.max_customers ? 'Maks ' + plan.max_customers : 'Unlimited' }} pelanggan</span></div>
+            <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>{{ plan.max_transactions_per_month ? 'Maks ' + plan.max_transactions_per_month : 'Unlimited' }} transaksi/bulan</span></div>
+            <div class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-green-600" /> <span>{{ plan.max_branches ? 'Maks ' + plan.max_branches : 'Unlimited' }} cabang</span></div>
             <div v-if="plan.trial_days" class="flex items-center gap-2"><CheckIcon class="w-4 h-4 text-blue-600" /> <span>{{ plan.trial_days }} hari trial</span></div>
           </div>
 
           <div v-if="plan.features?.length" class="flex flex-wrap gap-1 mb-4">
-            <span v-for="f in plan.features" :key="f" class="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">{{ f }}</span>
+            <span v-for="f in plan.features" :key="f" class="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">{{ featureLabels[f] || f }}</span>
           </div>
 
           <div class="flex items-center justify-between text-xs text-muted-foreground">
@@ -167,16 +189,24 @@ function toggleFeature(f) {
             <input v-model.number="form.trial_days" type="number" min="0" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Maks User</label>
-            <input v-model.number="form.max_users" type="number" min="1" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            <label class="block text-sm font-medium mb-1">Maks User (0 = unlimited)</label>
+            <input v-model.number="form.max_users" type="number" min="0" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Maks Produk</label>
-            <input v-model.number="form.max_products" type="number" min="1" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            <label class="block text-sm font-medium mb-1">Maks Produk (0 = unlimited)</label>
+            <input v-model.number="form.max_products" type="number" min="0" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Maks Cabang</label>
-            <input v-model.number="form.max_branches" type="number" min="1" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            <label class="block text-sm font-medium mb-1">Maks Pelanggan (0 = unlimited)</label>
+            <input v-model.number="form.max_customers" type="number" min="0" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Maks Transaksi / Bulan (0 = unlimited)</label>
+            <input v-model.number="form.max_transactions_per_month" type="number" min="0" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Maks Cabang (0 = unlimited)</label>
+            <input v-model.number="form.max_branches" type="number" min="0" class="w-full px-3 py-2 border border-border rounded-lg text-sm" />
           </div>
         </div>
         <div>
@@ -185,7 +215,7 @@ function toggleFeature(f) {
             <button v-for="f in featureOptions" :key="f" @click="toggleFeature(f)"
               class="px-3 py-1 rounded-full text-sm border transition-colors"
               :class="form.features.includes(f) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary'">
-              {{ f.replace('_', ' ') }}
+              {{ featureLabels[f] || f }}
             </button>
           </div>
         </div>

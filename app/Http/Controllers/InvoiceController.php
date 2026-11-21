@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Plan;
+use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -67,13 +68,13 @@ class InvoiceController extends Controller
     public function markPaid(Invoice $invoice)
     {
         $invoice->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-            'amount_paid' => $invoice->total,
             'payment_method' => request('payment_method', 'bank_transfer'),
         ]);
 
-        return back()->with('success', "Invoice {$invoice->invoice_number} ditandai lunas");
+        // Manual settlement (bank transfer) also activates/extends the plan.
+        app(SubscriptionService::class)->markInvoicePaid($invoice);
+
+        return back()->with('success', "Invoice {$invoice->invoice_number} ditandai lunas dan langganan diperbarui");
     }
 
     public function destroy(Invoice $invoice)

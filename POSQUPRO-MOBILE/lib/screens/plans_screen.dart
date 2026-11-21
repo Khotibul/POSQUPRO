@@ -10,6 +10,22 @@ class PlansScreen extends StatefulWidget {
 }
 
 class _PlansScreenState extends State<PlansScreen> {
+  static const _featureLabels = <String, String>{
+    'pos': 'POS / Kasir',
+    'products': 'Produk & Stok',
+    'customers': 'Pelanggan',
+    'suppliers': 'Supplier',
+    'inventory': 'Inventory',
+    'expenses': 'Pengeluaran',
+    'users': 'Pengguna & RBAC',
+    'reports': 'Laporan & Analitik',
+    'purchase_orders': 'Purchase Order',
+    'stock_counts': 'Stock Opname',
+    'multi_branch': 'Multi Cabang & Gudang',
+    'api_access': 'Akses API / Mobile',
+    'priority_support': 'Priority Support',
+  };
+
   final _api = ApiService();
   bool _loading = false;
   List _items = [];
@@ -43,6 +59,8 @@ class _PlansScreenState extends State<PlansScreen> {
     final trialDays = TextEditingController(text: existing?['trial_days']?.toString() ?? '14');
     final maxUsers = TextEditingController(text: existing?['max_users']?.toString() ?? '2');
     final maxProducts = TextEditingController(text: existing?['max_products']?.toString() ?? '100');
+    final maxCustomers = TextEditingController(text: existing?['max_customers']?.toString() ?? '100');
+    final maxTransactions = TextEditingController(text: existing?['max_transactions_per_month']?.toString() ?? '500');
     final maxBranches = TextEditingController(text: existing?['max_branches']?.toString() ?? '1');
     final featuresCtrl = TextEditingController(
       text: existing?['features'] is List
@@ -119,10 +137,35 @@ class _PlansScreenState extends State<PlansScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: maxCustomers,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Maks Pelanggan *'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: maxTransactions,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Maks Transaksi/Bulan *'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: featuresCtrl,
-                  decoration: const InputDecoration(labelText: 'Fitur (satu per baris)', hintText: 'POS\nLaporan\nMulti cabang'),
-                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Fitur (satu kunci per baris)',
+                    hintText: 'pos\nproducts\nreports\nmulti_branch',
+                    helperText: '0 pada limit berarti tidak terbatas.',
+                    helperMaxLines: 2,
+                  ),
+                  maxLines: 4,
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -163,6 +206,8 @@ class _PlansScreenState extends State<PlansScreen> {
       'trial_days': int.tryParse(trialDays.text) ?? 0,
       'max_users': int.tryParse(maxUsers.text) ?? 1,
       'max_products': int.tryParse(maxProducts.text) ?? 1,
+      'max_customers': int.tryParse(maxCustomers.text) ?? 0,
+      'max_transactions_per_month': int.tryParse(maxTransactions.text) ?? 0,
       'max_branches': int.tryParse(maxBranches.text) ?? 1,
       'features': features,
       'is_active': isActive,
@@ -314,6 +359,8 @@ class _PlansScreenState extends State<PlansScreen> {
                             children: [
                               _badge(Icons.people_rounded, 'User: ${p['max_users'] ?? '-'}'),
                               _badge(Icons.inventory_2_rounded, 'Produk: ${p['max_products'] ?? '-'}'),
+                              _badge(Icons.people_alt_rounded, 'Pelanggan: ${p['max_customers'] ?? '-'}'),
+                              _badge(Icons.receipt_long_rounded, 'Transaksi/bln: ${p['max_transactions_per_month'] ?? '-'}'),
                               _badge(Icons.store_rounded, 'Cabang: ${p['max_branches'] ?? '-'}'),
                               if (p['trial_days'] != null && (p['trial_days'] as num) > 0)
                                 _badge(Icons.hourglass_bottom_rounded, 'Trial ${p['trial_days']} hari'),
@@ -328,7 +375,7 @@ class _PlansScreenState extends State<PlansScreen> {
                                     children: [
                                       const Icon(Icons.check_circle_rounded, size: 13, color: AppColors.success),
                                       const SizedBox(width: 6),
-                                      Expanded(child: Text('$f', style: const TextStyle(fontSize: 12))),
+                                      Expanded(child: Text(_featureLabels['$f'] ?? '$f', style: const TextStyle(fontSize: 12))),
                                     ],
                                   ),
                                 )),

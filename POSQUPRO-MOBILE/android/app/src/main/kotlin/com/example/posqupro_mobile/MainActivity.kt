@@ -1,7 +1,9 @@
 package com.example.posqupro_mobile
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -20,6 +22,24 @@ class MainActivity : FlutterActivity() {
                     "request" -> requestBluetoothPermissions(result)
                     "check" -> result.success(haveBluetoothPermissions())
                     else -> result.notImplemented()
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "posqupro/browser")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "open") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                val url = call.argument<String>("url")
+                if (url.isNullOrBlank()) {
+                    result.success(false)
+                    return@setMethodCallHandler
+                }
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    result.success(true)
+                } catch (exception: Exception) {
+                    result.success(false)
                 }
             }
     }

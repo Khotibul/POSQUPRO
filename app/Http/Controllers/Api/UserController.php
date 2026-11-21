@@ -57,6 +57,10 @@ class UserController extends Controller
             unset($data['phone']);
         }
         $data['branch_id'] = $data['branch_id'] ?? 1;
+        // Staff created by a tenant admin belongs to that tenant.
+        if (empty($data['tenant_id']) && auth()->user()?->tenant_id) {
+            $data['tenant_id'] = auth()->user()->tenant_id;
+        }
         $user = User::create(collect($data)->except('roles')->toArray());
         if (! empty($data['roles'])) {
             $user->syncRoles($data['roles']);

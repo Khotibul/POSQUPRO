@@ -20,6 +20,13 @@ class TransactionService
      */
     public function create(array $data): Transaction
     {
+        $planService = app(PlanService::class);
+        if (($data['type'] ?? 'sell') === 'sell' && ! $planService->canAddTransaction()) {
+            throw ValidationException::withMessages([
+                'limit' => 'Batas transaksi bulanan paket Anda tercapai. Upgrade paket untuk melanjutkan transaksi.',
+            ]);
+        }
+
         return DB::transaction(function () use ($data) {
             $type = $data['type'] ?? 'sell';
             $items = $data['items'] ?? [];
@@ -44,6 +51,7 @@ class TransactionService
             $changeAmount = max(0, $paidAmount - $total);
 
             $transaction = Transaction::create([
+                'tenant_id' => $data['tenant_id'] ?? auth()->user()?->tenant_id,
                 'invoice_number' => $data['invoice_number'] ?? 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
                 'type' => $type,
                 'customer_id' => $data['customer_id'] ?? null,

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\InvoiceController;
@@ -63,13 +64,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // POS - Kasir (role: Cashier, Super Admin, Admin) - menu page, bukan popup (hemat memori)
-    Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
-    Route::get('/pos/checkout', [PosController::class, 'checkoutPage'])->name('pos.checkout.page');
-    Route::get('/pos/park', [PosController::class, 'parkPage'])->name('pos.park.page');
-    Route::post('/pos/park', [PosController::class, 'park'])->name('pos.park');
-    Route::delete('/pos/park/{id}', [PosController::class, 'destroyPark'])->name('pos.park.destroy');
-    Route::put('/pos/product-price/{product}', [PosController::class, 'updateProductPrice'])->name('pos.product-price.update');
-    Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
+    Route::middleware('plan.feature:pos')->group(function () {
+        Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
+        Route::get('/pos/checkout', [PosController::class, 'checkoutPage'])->name('pos.checkout.page');
+        Route::get('/pos/park', [PosController::class, 'parkPage'])->name('pos.park.page');
+        Route::post('/pos/park', [PosController::class, 'park'])->name('pos.park');
+        Route::delete('/pos/park/{id}', [PosController::class, 'destroyPark'])->name('pos.park.destroy');
+        Route::put('/pos/product-price/{product}', [PosController::class, 'updateProductPrice'])->name('pos.product-price.update');
+        Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
+    });
 
     // Products - support search/filter params
     Route::get('/products', function (Request $request) {
@@ -94,14 +97,14 @@ Route::middleware('auth')->group(function () {
             'suppliers' => Supplier::all(),
             'filters' => $request->only(['search', 'category_id', 'type']),
         ]);
-    })->name('web.products.index');
+    })->middleware('plan.feature:products')->name('web.products.index');
 
     // Customers
     Route::get('/customers', function () {
         return Inertia::render('Customers/Index', [
             'customers' => Customer::latest()->paginate(15),
         ]);
-    })->name('web.customers.index');
+    })->middleware('plan.feature:customers')->name('web.customers.index');
 
     // Inventory - tampil sesuai DB (jika inventory_histories kosong, tampilkan stock_movements Java)
     Route::get('/inventory', function () {
@@ -115,10 +118,10 @@ Route::middleware('auth')->group(function () {
             'products' => Product::with(['category', 'unitQuantity'])->latest()->paginate(15),
             'histories' => $histories,
         ]);
-    })->name('inventory.index');
+    })->middleware('plan.feature:inventory')->name('inventory.index');
 
     // Transactions
-    Route::get('/transactions', [TransactionController::class, 'index'])->name('web.transactions.index');
+    Route::get('/transactions', [TransactionController::class, 'index'])->middleware('plan.feature:pos')->name('web.transactions.index');
 
     // Reports
     Route::get('/reports', function () {
@@ -144,7 +147,7 @@ Route::middleware('auth')->group(function () {
                 ->select('method', DB::raw('SUM(amount) as total'))
                 ->groupBy('method')->get(),
         ]);
-    })->name('reports.index');
+    })->middleware('plan.feature:reports')->name('reports.index');
 
     // Users & RBAC
     Route::get('/users', function (Request $request) {
@@ -156,13 +159,13 @@ Route::middleware('auth')->group(function () {
             'roles' => Role::all(),
             'tenantId' => $request->tenant_id,
         ]);
-    })->name('web.users.index');
+    })->middleware('plan.feature:users')->name('web.users.index');
 
     Route::get('/suppliers', function () {
         return Inertia::render('Suppliers/Index', [
             'suppliers' => Supplier::paginate(15),
         ]);
-    })->name('web.suppliers.index');
+    })->middleware('plan.feature:suppliers')->name('web.suppliers.index');
 
     // Expenses - shared Java/desktop table (pengeluaran operasional/kas)
     Route::get('/expenses', function () {
@@ -171,13 +174,13 @@ Route::middleware('auth')->group(function () {
             'totalMonth' => Expense::whereMonth('created_at', now()->month)->sum('amount'),
             'branches' => Schema::hasTable('branches') ? Branch::select('id', 'name')->get() : [],
         ]);
-    })->name('web.expenses.index');
+    })->middleware('plan.feature:expenses')->name('web.expenses.index');
 
     // New pos-next-js features
     Route::get('/register', [RegisterController::class, 'index'])->name('register.index');
     Route::get('/parked-transactions', [ParkedTransactionController::class, 'index'])->name('web.parked-transactions.index');
-    Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('web.purchase-orders.index');
-    Route::get('/stock-counts', [StockCountController::class, 'index'])->name('web.stock-counts.index');
+    Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->middleware('plan.feature:purchase_orders')->name('web.purchase-orders.index');
+    Route::get('/stock-counts', [StockCountController::class, 'index'])->middleware('plan.feature:stock_counts')->name('web.stock-counts.index');
     Route::get('/settings', [SettingController::class, 'index'])->name('web.settings.index');
     Route::post('/settings', [SettingController::class, 'updateGroup'])->name('settings.updateGroup');
     Route::post('/settings/tax', [SettingController::class, 'storeTax'])->name('settings.storeTax');
@@ -202,33 +205,40 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Units/Index', ['units' => UnitQuantity::paginate(15), 'allUnits' => $units, 'unitQuantities' => $uqs]);
     })->name('units.index');
     Route::get('/taxes', fn () => Inertia::render('Taxes/Index', ['taxes' => Tax::paginate(15)]))->name('web.taxes.index');
-    Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => Branch::with('warehouses')->paginate(15)]))->name('web.branches.index');
+    Route::get('/branches', fn () => Inertia::render('Branches/Index', ['branches' => Branch::with('warehouses')->paginate(15)]))->middleware('plan.feature:multi_branch')->name('web.branches.index');
     Route::get('/warehouses', function () {
         return Inertia::render('Warehouses/Index', [
             'warehouses' => Warehouse::with('branch')->paginate(15),
             'branches' => Branch::select('id', 'name', 'code')->get(),
         ]);
-    })->name('web.warehouses.index');
+    })->middleware('plan.feature:multi_branch')->name('web.warehouses.index');
+
+    // Tenant self-service subscription & iPaymu checkout
+    Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::post('/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
+    Route::get('/billing/payment/{invoice}/return', [BillingController::class, 'paymentReturn'])->name('billing.return');
 
     // ═══════════════════════════════════════════════════════════════
     // SaaS Management - Super Admin Owner
     // ═══════════════════════════════════════════════════════════════
-    Route::get('/saas', [SaasController::class, 'dashboard'])->name('saas.dashboard');
-    Route::get('/tenants', [TenantController::class, 'index'])->name('tenants.index');
-    Route::post('/tenants', [TenantController::class, 'store'])->name('tenants.store');
-    Route::get('/tenants/{tenant}', [TenantController::class, 'show'])->name('tenants.show');
-    Route::put('/tenants/{tenant}', [TenantController::class, 'update'])->name('tenants.update');
-    Route::delete('/tenants/{tenant}', [TenantController::class, 'destroy'])->name('tenants.destroy');
-    Route::post('/tenants/{tenant}/suspend', [TenantController::class, 'suspend'])->name('tenants.suspend');
-    Route::post('/tenants/{tenant}/activate', [TenantController::class, 'activate'])->name('tenants.activate');
+    Route::middleware('role:Super Admin')->group(function () {
+        Route::get('/saas', [SaasController::class, 'dashboard'])->name('saas.dashboard');
+        Route::get('/tenants', [TenantController::class, 'index'])->name('tenants.index');
+        Route::post('/tenants', [TenantController::class, 'store'])->name('tenants.store');
+        Route::get('/tenants/{tenant}', [TenantController::class, 'show'])->name('tenants.show');
+        Route::put('/tenants/{tenant}', [TenantController::class, 'update'])->name('tenants.update');
+        Route::delete('/tenants/{tenant}', [TenantController::class, 'destroy'])->name('tenants.destroy');
+        Route::post('/tenants/{tenant}/suspend', [TenantController::class, 'suspend'])->name('tenants.suspend');
+        Route::post('/tenants/{tenant}/activate', [TenantController::class, 'activate'])->name('tenants.activate');
 
-    Route::get('/billing/plans', [PlanController::class, 'index'])->name('plans.index');
-    Route::post('/billing/plans', [PlanController::class, 'store'])->name('plans.store');
-    Route::put('/billing/plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
-    Route::delete('/billing/plans/{plan}', [PlanController::class, 'destroy'])->name('plans.destroy');
+        Route::get('/billing/plans', [PlanController::class, 'index'])->name('plans.index');
+        Route::post('/billing/plans', [PlanController::class, 'store'])->name('plans.store');
+        Route::put('/billing/plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
+        Route::delete('/billing/plans/{plan}', [PlanController::class, 'destroy'])->name('plans.destroy');
 
-    Route::get('/billing/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
-    Route::post('/billing/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
-    Route::post('/billing/invoices/{invoice}/pay', [InvoiceController::class, 'markPaid'])->name('invoices.markPaid');
-    Route::delete('/billing/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+        Route::get('/billing/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+        Route::post('/billing/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        Route::post('/billing/invoices/{invoice}/pay', [InvoiceController::class, 'markPaid'])->name('invoices.markPaid');
+        Route::delete('/billing/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+    });
 });

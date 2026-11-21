@@ -25,11 +25,15 @@ class PlanController extends Controller
             'price' => 'required|numeric|min:0',
             'price_yearly' => 'nullable|numeric|min:0',
             'trial_days' => 'nullable|integer|min:0',
-            'max_users' => 'required|integer|min:1',
-            'max_products' => 'required|integer|min:1',
-            'max_branches' => 'required|integer|min:1',
+            'max_users' => 'required|integer|min:0',
+            'max_products' => 'required|integer|min:0',
+            'max_customers' => 'nullable|integer|min:0',
+            'max_transactions_per_month' => 'nullable|integer|min:0',
+            'max_branches' => 'required|integer|min:0',
             'features' => 'nullable|array',
+            'features.*' => 'string|in:'.implode(',', array_keys(Plan::FEATURE_LABELS)),
             'is_active' => 'boolean',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
 
         if (empty($validated['slug'])) {
@@ -49,11 +53,15 @@ class PlanController extends Controller
             'price' => 'required|numeric|min:0',
             'price_yearly' => 'nullable|numeric|min:0',
             'trial_days' => 'nullable|integer|min:0',
-            'max_users' => 'required|integer|min:1',
-            'max_products' => 'required|integer|min:1',
-            'max_branches' => 'required|integer|min:1',
+            'max_users' => 'required|integer|min:0',
+            'max_products' => 'required|integer|min:0',
+            'max_customers' => 'nullable|integer|min:0',
+            'max_transactions_per_month' => 'nullable|integer|min:0',
+            'max_branches' => 'required|integer|min:0',
             'features' => 'nullable|array',
+            'features.*' => 'string|in:'.implode(',', array_keys(Plan::FEATURE_LABELS)),
             'is_active' => 'boolean',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
 
         $plan->update($validated);

@@ -26,6 +26,7 @@ class BranchController extends Controller
         }
 
         $data = $request->validate(['code' => ['required', 'string', 'unique:branches,code'], 'name' => ['required', 'string'], 'address' => ['nullable', 'string'], 'phone' => ['nullable', 'string'], 'active' => ['boolean']]);
+        $data['tenant_id'] = auth()->user()?->tenant_id;
 
         return Branch::create($data);
     }

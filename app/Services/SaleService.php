@@ -18,6 +18,11 @@ class SaleService
      */
     public function create(array $data): array
     {
+        $planService = app(PlanService::class);
+        if (($data['type'] ?? 'sell') === 'sell' && ! $planService->canAddTransaction()) {
+            throw new \Exception('Batas transaksi bulanan paket Anda tercapai. Upgrade paket untuk melanjutkan transaksi.');
+        }
+
         return DB::transaction(function () use ($data) {
             $items = $data['items'] ?? [];
             $type = $data['type'] ?? 'sell';

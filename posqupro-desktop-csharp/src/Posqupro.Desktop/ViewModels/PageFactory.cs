@@ -28,6 +28,7 @@ public static class PageFactory
         "tenants" => ("Tenant", new CrudViewModel(CrudCatalog.Tenants(), shell)),
         "users" => ("Pengguna & RBAC", new CrudViewModel(CrudCatalog.Users(), shell)),
         "activity-logs" => ("Log Aktivitas", new CrudViewModel(CrudCatalog.ActivityLogs(), shell)),
+        "subscription" => ("Langganan", new SubscriptionViewModel()),
         "settings" => ("Pengaturan", new SettingsViewModel(shell)),
         "sync" => ("Sinkronisasi", new SyncViewModel()),
         _ => ("POSQUPRO", new DashboardViewModel(shell)),

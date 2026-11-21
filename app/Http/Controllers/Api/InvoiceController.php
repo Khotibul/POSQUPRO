@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Plan;
+use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
@@ -62,13 +63,12 @@ class InvoiceController extends Controller
     public function markPaid(Invoice $invoice)
     {
         $invoice->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-            'amount_paid' => $invoice->total,
             'payment_method' => request('payment_method', 'bank_transfer'),
         ]);
 
-        return $invoice->load(['tenant', 'plan']);
+        app(SubscriptionService::class)->markInvoicePaid($invoice);
+
+        return $invoice->fresh(['tenant', 'plan']);
     }
 
     public function destroy(Invoice $invoice)

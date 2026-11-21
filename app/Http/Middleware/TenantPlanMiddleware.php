@@ -34,11 +34,16 @@ class TenantPlanMiddleware
                     'id' => $tenant->id,
                     'name' => $tenant->name,
                     'status' => $tenant->status,
+                    'is_trial' => $tenant->status === 'trial',
+                    'is_expired' => $planService->isExpired(),
                     'plan' => $tenant->plan ? [
                         'id' => $tenant->plan->id,
                         'name' => $tenant->plan->name,
+                        'slug' => $tenant->plan->slug,
                         'features' => $tenant->plan->features ?? [],
                     ] : null,
+                    'features' => $planService->getFeatures(),
+                    'subscription' => $planService->getSubscriptionSummary(),
                     'limits' => $planService->getLimitsSummary(),
                 ]);
             } else {

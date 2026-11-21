@@ -8,6 +8,7 @@ public sealed class NavItem
     public string Shortcut { get; init; } = "";
     public string Section { get; init; } = "";
     public string[] Roles { get; init; } = [];
+    public string? Feature { get; init; }
     public bool IsEnabled { get; set; } = true;
     public string Tooltip => string.IsNullOrWhiteSpace(Shortcut) ? Label : $"{Label}  ({Shortcut})";
 }

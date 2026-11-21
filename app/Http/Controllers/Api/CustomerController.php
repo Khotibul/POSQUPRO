@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Services\PlanService;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -18,6 +19,14 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        $planService = app(PlanService::class);
+        if (! $planService->canAddCustomer()) {
+            return response()->json([
+                'message' => 'Batas maksimal pelanggan paket Anda tercapai. Upgrade paket untuk menambah pelanggan.',
+                'limits' => $planService->getLimitsSummary(),
+            ], 403);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email'],
@@ -26,6 +35,8 @@ class CustomerController extends Controller
             'credit_limit' => ['nullable', 'numeric'],
             'is_active' => ['boolean'],
         ]);
+
+        $data['tenant_id'] = auth()->user()?->tenant_id;
 
         return Customer::create($data);
     }

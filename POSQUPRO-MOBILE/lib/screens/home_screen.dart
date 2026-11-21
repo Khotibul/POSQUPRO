@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
+import '../models/subscription.dart';
 import '../providers/auth_provider.dart';
 import '../providers/local_database_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/pressable.dart';
 import 'products_screen.dart';
@@ -52,8 +54,24 @@ const _allActions = <_Action>[
   _Action(Icons.business_rounded, 'Tenant', '/tenants', [Color(0xFF8B6C4A), Color(0xFF5E462C)]),
   _Action(Icons.card_membership_rounded, 'Paket', '/plans', [Color(0xFF9A7B3F), Color(0xFF6B5326)]),
   _Action(Icons.description_rounded, 'Invoice Langganan', '/invoices', [Color(0xFF6F6F8F), Color(0xFF484862)]),
+  _Action(Icons.workspace_premium_rounded, 'Langganan Saya', '/subscription', [Color(0xFFB08D57), Color(0xFF7A5B2E)]),
   _Action(Icons.storage_rounded, 'Koneksi Database', '/db-setup', [Color(0xFF4A7C74), Color(0xFF2C554E)]),
 ];
+
+/// Fitur paket yang menjaga akses menu di klien. Server tetap menjadi
+/// penentu akhir lewat middleware plan.feature pada setiap endpoint.
+String? _featureForRoute(String route) => switch (route) {
+      '/pos' || '/payments' => 'pos',
+      '/products' || '/stock' || '/master-data' => 'products',
+      '/customers' => 'customers',
+      '/suppliers' => 'suppliers',
+      '/inventory-histories' || '/stock-counts' => 'stock_counts',
+      '/purchase-orders' => 'purchase_orders',
+      '/expenses' => 'expenses',
+      '/reports' || '/activity-logs' => 'reports',
+      '/users' => 'users',
+      _ => null,
+    };
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
@@ -64,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Muat pengaturan toko (nama/telepon/alamat) sekali saat masuk home.
       context.read<SettingsProvider>().loadPublicSettings();
+      context.read<SubscriptionProvider>().load();
       await context.read<LocalDatabaseProvider>().initFromSaved();
       if (!mounted) return;
       context.read<LocalDatabaseProvider>().loadAll();
@@ -83,10 +102,46 @@ class _HomeScreenState extends State<HomeScreen> {
       _showAllMenu(context);
       return;
     }
+
+    final subscription = context.read<SubscriptionProvider>();
+    final feature = _featureForRoute(action.route);
+    if (feature != null && !subscription.hasFeature(feature)) {
+      _showUpgradeDialog(action.label);
+      return;
+    }
+
     Navigator.pushNamed(context, action.route);
   }
 
+  void _showUpgradeDialog(String label) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Fitur belum tersedia'),
+        content: Text('$label tidak termasuk dalam paket Anda. Upgrade paket untuk membuka fitur ini.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushNamed(context, '/subscription');
+            },
+            child: const Text('Lihat paket'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAllMenu(BuildContext context) {
+    final subscription = context.read<SubscriptionProvider>();
+    final actions = _allActions
+        .where((action) {
+          final feature = _featureForRoute(action.route);
+          return feature == null || subscription.hasFeature(feature);
+        })
+        .toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -139,9 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.72,
                   ),
-                  itemCount: _allActions.length,
+                  itemCount: actions.length,
                   itemBuilder: (context, index) {
-                    final action = _allActions[index];
+                    final action = actions[index];
                     return FeatureTile(
                       icon: action.icon,
                       label: action.label,
@@ -368,6 +423,13 @@ class _DashboardTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final db = context.watch<LocalDatabaseProvider>();
+    final subscription = context.watch<SubscriptionProvider>();
+    final actions = _primaryActions
+        .where((action) {
+          final feature = _featureForRoute(action.route);
+          return feature == null || subscription.hasFeature(feature);
+        })
+        .toList();
     final isDesktop = Responsive.isDesktop(context);
     final padding = Responsive.padding(context);
 
@@ -385,6 +447,19 @@ class _DashboardTab extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _buildHero(context, firstName, todayTotal, todayCount, db, padding)),
+          if (subscription.subscription != null &&
+              (subscription.subscription!.isTrial ||
+                  subscription.subscription!.isExpired ||
+                  subscription.subscription!.status == 'suspended'))
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(padding, 12, padding, 0),
+              sliver: SliverToBoxAdapter(
+                child: _SubscriptionBanner(
+                  snapshot: subscription.subscription!,
+                  onTap: () => Navigator.pushNamed(context, '/subscription'),
+                ),
+              ),
+            ),
           SliverPadding(
             padding: EdgeInsets.fromLTRB(padding, 18, padding, 0),
             sliver: SliverGrid.count(
@@ -442,7 +517,7 @@ class _DashboardTab extends StatelessWidget {
               crossAxisSpacing: 10,
               childAspectRatio: isDesktop ? 1.35 : 0.72,
               children: [
-                for (final action in _primaryActions)
+                for (final action in actions)
                   FeatureTile(
                     icon: action.icon,
                     label: action.label,
@@ -753,6 +828,52 @@ class _DashboardTab extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubscriptionBanner extends StatelessWidget {
+  final SubscriptionSnapshot snapshot;
+  final VoidCallback onTap;
+
+  const _SubscriptionBanner({required this.snapshot, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final expired = snapshot.isExpired || snapshot.status == 'suspended' || snapshot.status == 'inactive';
+    final color = expired ? AppColors.danger : AppColors.warning;
+    final message = expired
+        ? 'Masa demo/langganan berakhir. Pilih paket untuk melanjutkan.'
+        : snapshot.isTrial
+            ? 'Demo ${snapshot.daysRemaining} hari tersisa · semua fitur terbuka'
+            : 'Paket aktif sampai ${snapshot.daysRemaining} hari lagi';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(
+          color: expired ? AppColors.dangerLight : AppColors.warningLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Icon(expired ? Icons.error_outline_rounded : Icons.hourglass_bottom_rounded, size: 18, color: color),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(fontSize: 11.5, height: 1.3, fontWeight: FontWeight.w600, color: color),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text('Lihat', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+            Icon(Icons.chevron_right_rounded, size: 16, color: color),
           ],
         ),
       ),

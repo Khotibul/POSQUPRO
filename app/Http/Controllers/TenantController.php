@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Services\SubscriptionService;
 use App\Services\TenantOwnerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,6 +94,11 @@ class TenantController extends Controller
                 'password' => $validated['owner_password'] ?? null,
             ]);
 
+            if ($status === 'trial') {
+                $trialPlan = ! empty($validated['plan_id']) ? Plan::find($validated['plan_id']) : null;
+                app(SubscriptionService::class)->startTrial($tenant, null, $trialPlan);
+            }
+
             return [$tenant, $plainPassword];
         });
 
@@ -150,6 +156,10 @@ class TenantController extends Controller
             ]);
         });
 
+        if ($tenant->status === 'active' && app(SubscriptionService::class)->isExpired($tenant)) {
+            app(SubscriptionService::class)->reactivate($tenant);
+        }
+
         $message = "Tenant \"{$tenant->name}\" diperbarui";
         if ($ownerPassword !== null) {
             $message .= ". Password akun owner: {$ownerPassword}";
@@ -171,13 +181,9 @@ class TenantController extends Controller
 
     public function activate(Tenant $tenant)
     {
-        $tenant->update([
-            'status' => 'active',
-            'suspended_at' => null,
-            'suspension_reason' => null,
-        ]);
+        app(SubscriptionService::class)->reactivate($tenant);
 
-        return back()->with('success', "Tenant \"{$tenant->name}\" diaktifkan");
+        return back()->with('success', "Tenant \"{$tenant->name}\" diaktifkan dengan masa aktif 30 hari");
     }
 
     public function destroy(Tenant $tenant)

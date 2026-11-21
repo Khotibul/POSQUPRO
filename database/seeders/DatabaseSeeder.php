@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             PosquproSeeder::class,
             SaaSDataSeeder::class,
+            SubscriptionPlanSeeder::class,
         ]);
     }
 }

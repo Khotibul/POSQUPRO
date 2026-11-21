@@ -221,7 +221,7 @@
             <div class="container mx-auto max-w-7xl px-4 lg:px-8">
                 <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
                     <h2 class="text-2xl sm:text-3xl font-bold">Harga Simpel</h2>
-                    <p class="text-muted-foreground mt-2 text-sm sm:text-base">Mulai gratis, scale sesuai kebutuhan toko Anda.</p>
+                    <p class="text-muted-foreground mt-2 text-sm sm:text-base">Coba demo 30 hari dengan seluruh fitur, lalu pilih paket sesuai kebutuhan toko Anda.</p>
                 </div>
                 @php
                     try {
@@ -229,7 +229,7 @@
                     } catch (\Exception $e) {
                         $plans = collect();
                     }
-                    $popularIndex = $plans->search(fn($p) => $p->slug === 'pro') ?? 1;
+                    $popularIndex = $plans->search(fn($p) => $p->slug === 'business') ?? 1;
                 @endphp
                 <div class="grid sm:grid-cols-2 lg:grid-cols-{{ min($plans->count(), 4) }} gap-4 sm:gap-6 max-w-5xl mx-auto">
                     @foreach($plans as $i => $plan)
@@ -241,7 +241,11 @@
                             $featureLabels = [
                                 'pos' => 'POS Kasir',
                                 'products' => 'Manajemen Produk',
+                                'customers' => 'Pelanggan',
+                                'suppliers' => 'Supplier',
                                 'inventory' => 'Inventory & Stok',
+                                'expenses' => 'Pengeluaran',
+                                'users' => 'Pengguna & Hak Akses',
                                 'reports' => 'Laporan Analytics',
                                 'purchase_orders' => 'Purchase Order',
                                 'stock_counts' => 'Stock Opname',
@@ -265,10 +269,10 @@
                             @endif
                             <p class="text-sm text-muted-foreground">{{ $plan->description }}</p>
                             <ul class="mt-4 space-y-2 text-sm {{ $plan->price > 0 ? '' : 'text-muted-foreground' }}">
-                                <li>✓ {{ $plan->max_users }} User • {{ number_format($plan->max_products) }} Produk</li>
-                                <li>✓ {{ $plan->max_branches }} Cabang</li>
+                                <li>✓ {{ $plan->max_users ? $plan->max_users.' User' : 'User tanpa batas' }} • {{ $plan->max_products ? number_format($plan->max_products).' Produk' : 'Produk tanpa batas' }}</li>
+                                <li>✓ {{ $plan->max_customers ? number_format($plan->max_customers).' Pelanggan' : 'Pelanggan tanpa batas' }} • {{ $plan->max_branches ? $plan->max_branches.' Cabang' : 'Cabang tanpa batas' }}</li>
                                 @if($plan->trial_days > 0)
-                                    <li>✓ {{ $plan->trial_days }} Hari Trial</li>
+                                    <li>✓ {{ $plan->trial_days }} Hari Demo Semua Fitur</li>
                                 @endif
                                 @foreach($features as $f)
                                     @if(isset($featureLabels[$f]))
@@ -277,7 +281,7 @@
                                 @endforeach
                             </ul>
                             @if($plan->price <= 0)
-                                <a href="{{ route('daftar') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Gratis</a>
+                                <a href="{{ route('daftar') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md border border-input bg-background hover:bg-accent">Mulai Demo 30 Hari</a>
                             @elseif($isPopular)
                                 <a href="{{ route('daftar') }}" class="mt-6 inline-flex w-full h-10 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Pilih {{ $plan->name }}</a>
                             @else
@@ -293,7 +297,7 @@
         <section id="download" class="container mx-auto max-w-7xl px-4 lg:px-8 py-12 sm:py-16 border-t border-border">
             <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
                 <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Download POSQUPRO</h2>
-                <p class="text-muted-foreground mt-2 text-sm sm:text-base">Mulai gunakan POSQUPRO sekarang. GRATIS untuk plan Starter.</p>
+                <p class="text-muted-foreground mt-2 text-sm sm:text-base">Mulai gunakan POSQUPRO sekarang. Demo 30 hari gratis, semua fitur terbuka.</p>
             </div>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
                 <!-- Web App -->

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('domain')->nullable()->unique(); // custom domain
             $table->unsignedBigInteger('owner_id')->nullable();
             $table->foreignId('plan_id')->nullable()->constrained()->nullOnDelete();
-            $table->enum('status', ['active', 'inactive', 'suspended', 'trial'])->default('trial');
+            $table->enum('status', ['active', 'inactive', 'suspended', 'trial', 'expired'])->default('trial');
             $table->timestamp('trial_ends_at')->nullable();
             $table->timestamp('suspended_at')->nullable();
             $table->text('suspension_reason')->nullable();

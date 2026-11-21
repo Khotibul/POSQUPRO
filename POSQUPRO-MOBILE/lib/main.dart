@@ -14,6 +14,7 @@ import 'providers/report_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/register_provider.dart';
 import 'providers/local_database_provider.dart';
+import 'providers/subscription_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -42,6 +43,7 @@ import 'screens/plans_screen.dart';
 import 'screens/payments_screen.dart';
 import 'screens/printer_settings_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/subscription_screen.dart';
 
 Future<void> _bootstrapConfig() async {
   final cfg = await DatabaseConfigService().getConfig();
@@ -89,6 +91,7 @@ class PosquproApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => RegisterProvider()),
         ChangeNotifierProvider(create: (_) => LocalDatabaseProvider()),
+        ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
       ],
       child: MaterialApp(
         title: 'POSQUPRO',
@@ -151,6 +154,8 @@ class PosquproApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const SettingsScreen());
             case '/printer-settings':
               return MaterialPageRoute(builder: (_) => const PrinterSettingsScreen());
+            case '/subscription':
+              return MaterialPageRoute(builder: (_) => const SubscriptionScreen());
             default:
               return MaterialPageRoute(builder: (_) => const LoginScreen());
           }

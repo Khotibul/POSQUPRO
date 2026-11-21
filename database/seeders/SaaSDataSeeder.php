@@ -19,61 +19,12 @@ class SaaSDataSeeder extends Seeder
         }
 
         // ── PLANS ──────────────────────────────────────────────
-        $free = Plan::firstOrCreate(['slug' => 'free'], [
-            'name' => 'Free',
-            'description' => 'Coba gratis selama 14 hari',
-            'price' => 0,
-            'price_yearly' => 0,
-            'trial_days' => 14,
-            'max_users' => 1,
-            'max_products' => 50,
-            'max_branches' => 1,
-            'features' => ['pos', 'products'],
-            'is_active' => true,
-            'sort_order' => 1,
-        ]);
+        $this->call(SubscriptionPlanSeeder::class);
 
-        $starter = Plan::firstOrCreate(['slug' => 'starter'], [
-            'name' => 'Starter',
-            'description' => 'Untuk usaha kecil yang baru mulai',
-            'price' => 99000,
-            'price_yearly' => 990000,
-            'trial_days' => 7,
-            'max_users' => 2,
-            'max_products' => 200,
-            'max_branches' => 1,
-            'features' => ['pos', 'products', 'inventory', 'reports'],
-            'is_active' => true,
-            'sort_order' => 2,
-        ]);
-
-        $pro = Plan::firstOrCreate(['slug' => 'pro'], [
-            'name' => 'Pro',
-            'description' => 'Untuk bisnis yang berkembang',
-            'price' => 299000,
-            'price_yearly' => 2990000,
-            'trial_days' => 7,
-            'max_users' => 5,
-            'max_products' => 1000,
-            'max_branches' => 3,
-            'features' => ['pos', 'products', 'inventory', 'reports', 'purchase_orders', 'stock_counts', 'multi_branch'],
-            'is_active' => true,
-            'sort_order' => 3,
-        ]);
-
-        $enterprise = Plan::firstOrCreate(['slug' => 'enterprise'], [
-            'name' => 'Enterprise',
-            'description' => 'Untuk bisnis berskala besar',
-            'price' => 599000,
-            'price_yearly' => 5990000,
-            'trial_days' => 0,
-            'max_users' => 50,
-            'max_products' => 10000,
-            'max_branches' => 50,
-            'features' => ['pos', 'products', 'inventory', 'reports', 'purchase_orders', 'stock_counts', 'multi_branch', 'api_access', 'priority_support'],
-            'is_active' => true,
-            'sort_order' => 4,
-        ]);
+        $demo = Plan::where('slug', 'demo')->firstOrFail();
+        $professional = Plan::where('slug', 'professional')->firstOrFail();
+        $business = Plan::where('slug', 'business')->firstOrFail();
+        $enterprise = Plan::where('slug', 'enterprise')->firstOrFail();
 
         // ── TENANTS ────────────────────────────────────────────
         $owner = User::where('email', 'superadmin@posqupro.test')->first();
@@ -85,7 +36,7 @@ class SaaSDataSeeder extends Seeder
             'address' => 'Jl. Merdeka No. 10',
             'city' => 'Jakarta',
             'province' => 'DKI Jakarta',
-            'plan_id' => $pro->id,
+            'plan_id' => $business->id,
             'owner_id' => $owner?->id,
             'status' => 'active',
             'is_active' => true,
@@ -98,7 +49,7 @@ class SaaSDataSeeder extends Seeder
             'address' => 'Jl. Sudirman No. 25',
             'city' => 'Bandung',
             'province' => 'Jawa Barat',
-            'plan_id' => $starter->id,
+            'plan_id' => $professional->id,
             'owner_id' => $owner?->id,
             'status' => 'active',
             'is_active' => true,
@@ -110,10 +61,10 @@ class SaaSDataSeeder extends Seeder
             'phone' => '08789012345',
             'city' => 'Surabaya',
             'province' => 'Jawa Timur',
-            'plan_id' => $free->id,
+            'plan_id' => $demo->id,
             'owner_id' => $owner?->id,
             'status' => 'trial',
-            'trial_ends_at' => now()->addDays(10),
+            'trial_ends_at' => now()->addDays(30),
             'is_active' => true,
         ]);
 
@@ -133,7 +84,7 @@ class SaaSDataSeeder extends Seeder
         $t5 = Tenant::firstOrCreate(['slug' => 'toko-maju'], [
             'name' => 'Toko Maju Mundur',
             'email' => 'maju@example.com',
-            'plan_id' => $starter->id,
+            'plan_id' => $professional->id,
             'owner_id' => $owner?->id,
             'status' => 'suspended',
             'suspended_at' => now()->subDays(5),

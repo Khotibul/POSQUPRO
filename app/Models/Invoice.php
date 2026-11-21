@@ -17,6 +17,7 @@ class Invoice extends Model
         'subscription_id',
         'plan_id',
         'status',
+        'billing_cycle',
         'subtotal',
         'tax_amount',
         'total',
@@ -27,6 +28,7 @@ class Invoice extends Model
         'paid_at',
         'payment_method',
         'external_id',
+        'payment_url',
         'notes',
         'items',
     ];

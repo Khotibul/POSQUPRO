@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Repositories\ProductRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ProductService
 {
@@ -24,6 +25,15 @@ class ProductService
     public function create(array $data): Product
     {
         return DB::transaction(function () use ($data) {
+            $planService = app(PlanService::class);
+            if (! $planService->canAddProduct()) {
+                throw ValidationException::withMessages([
+                    'limit' => 'Batas maksimal produk paket Anda tercapai. Upgrade paket untuk menambah produk.',
+                ]);
+            }
+
+            $data['tenant_id'] = $data['tenant_id'] ?? auth()->user()?->tenant_id;
+
             if (empty($data['sku'])) {
                 $data['sku'] = 'PRD-'.strtoupper(Str::random(8));
             }

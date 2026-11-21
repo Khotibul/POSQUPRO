@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\Tenant;
+use App\Services\SubscriptionService;
 use App\Services\TenantOwnerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -77,6 +79,11 @@ class TenantController extends Controller
                 'password' => $validated['owner_password'] ?? null,
             ]);
 
+            if ($status === 'trial') {
+                $trialPlan = ! empty($validated['plan_id']) ? Plan::find($validated['plan_id']) : null;
+                app(SubscriptionService::class)->startTrial($tenant, null, $trialPlan);
+            }
+
             return [$tenant, $plainPassword];
         });
 
@@ -133,6 +140,10 @@ class TenantController extends Controller
             ]);
         });
 
+        if ($tenant->status === 'active' && app(SubscriptionService::class)->isExpired($tenant)) {
+            app(SubscriptionService::class)->reactivate($tenant);
+        }
+
         $data = $tenant->load(['owner', 'plan'])->toArray();
         $data['owner_password'] = $plainPassword;
 
@@ -152,13 +163,9 @@ class TenantController extends Controller
 
     public function activate(Tenant $tenant)
     {
-        $tenant->update([
-            'status' => 'active',
-            'suspended_at' => null,
-            'suspension_reason' => null,
-        ]);
+        app(SubscriptionService::class)->reactivate($tenant);
 
-        return $tenant;
+        return $tenant->fresh(['owner', 'plan']);
     }
 
     public function destroy(Tenant $tenant)

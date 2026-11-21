@@ -37,12 +37,14 @@ public sealed class ShellViewModel : ViewModelBase
         });
         SyncCommand = new AsyncRelayCommand(SyncNowAsync);
         LogoutCommand = new AsyncRelayCommand(LogoutAsync);
+        OpenSubscriptionCommand = new RelayCommand(() => Navigate("subscription"));
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
         _timer.Tick += async (_, _) => await AppServices.Sync.TickAsync();
         _timer.Start();
 
         AppServices.Sync.Changed += OnSyncChanged;
+        AppServices.Subscription.Changed += OnSubscriptionChanged;
         RefreshSyncState();
 
         var first = NavItems.FirstOrDefault();
@@ -61,6 +63,7 @@ public sealed class ShellViewModel : ViewModelBase
     public ICommand NavigateCommand { get; }
     public ICommand SyncCommand { get; }
     public ICommand LogoutCommand { get; }
+    public ICommand OpenSubscriptionCommand { get; }
 
     public string UserName => AppServices.Settings.Value.UserName ?? "Pengguna";
     public string RoleLabel => MapRole(AppServices.Settings.Value.UserRole);
@@ -70,6 +73,40 @@ public sealed class ShellViewModel : ViewModelBase
     public string LicenseLabel => string.IsNullOrWhiteSpace(AppServices.Settings.Value.LicenseCode)
         ? "Lisensi belum tersedia"
         : $"Lisensi {AppServices.Settings.Value.LicenseCode}";
+
+    public bool ShowSubscriptionBanner
+    {
+        get
+        {
+            var subscription = AppServices.Subscription.Current;
+            if (subscription is null) return false;
+
+            return AppServices.Subscription.IsBlocked
+                || subscription.Subscription?.IsTrial == true
+                || subscription.Subscription?.DaysRemaining <= 7;
+        }
+    }
+
+    public bool IsSubscriptionBlocked => AppServices.Subscription.IsBlocked;
+
+    public string SubscriptionBannerText
+    {
+        get
+        {
+            var subscription = AppServices.Subscription.Current;
+            if (subscription is null) return "";
+
+            if (AppServices.Subscription.IsBlocked)
+            {
+                return "Masa demo/langganan berakhir. Pilih paket untuk melanjutkan.";
+            }
+
+            var days = subscription.Subscription?.DaysRemaining ?? subscription.DaysRemaining;
+            return subscription.Subscription?.IsTrial == true
+                ? $"Demo {days} hari tersisa · semua fitur terbuka"
+                : $"Paket aktif · {days} hari lagi";
+        }
+    }
 
     public object? CurrentPage
     {
@@ -169,6 +206,7 @@ public sealed class ShellViewModel : ViewModelBase
 
     private async Task StartAsync()
     {
+        await AppServices.Subscription.RefreshAsync();
         await AppServices.Sync.TickAsync();
         if (IsOnline && AppServices.Settings.Value.LastSyncAt is null)
         {
@@ -213,6 +251,7 @@ public sealed class ShellViewModel : ViewModelBase
 
         _timer.Stop();
         AppServices.Sync.Changed -= OnSyncChanged;
+        AppServices.Subscription.Changed -= OnSubscriptionChanged;
         await AppServices.Auth.LogoutAsync();
         LoggedOut?.Invoke();
     }
@@ -227,6 +266,49 @@ public sealed class ShellViewModel : ViewModelBase
         else
         {
             dispatcher.Invoke(RefreshSyncState);
+        }
+    }
+
+    private void OnSubscriptionChanged()
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess())
+        {
+            ApplySubscriptionState();
+        }
+        else
+        {
+            dispatcher.Invoke(ApplySubscriptionState);
+        }
+    }
+
+    private void ApplySubscriptionState()
+    {
+        RebuildNav();
+        OnPropertyChanged(nameof(TenantLabel));
+        OnPropertyChanged(nameof(ShowSubscriptionBanner));
+        OnPropertyChanged(nameof(IsSubscriptionBlocked));
+        OnPropertyChanged(nameof(SubscriptionBannerText));
+    }
+
+    private void RebuildNav()
+    {
+        var selectedKey = _selectedNav?.Key ?? _currentKey;
+        NavItems.Clear();
+        foreach (var item in BuildNavItems())
+        {
+            NavItems.Add(item);
+        }
+
+        var selected = NavItems.FirstOrDefault(item => item.Key == selectedKey) ?? NavItems.FirstOrDefault();
+        if (selected is not null)
+        {
+            _selectedNav = selected;
+            OnPropertyChanged(nameof(SelectedNav));
+            if (selected.Key != _currentKey)
+            {
+                NavigateTo(selected);
+            }
         }
     }
 
@@ -262,34 +344,47 @@ public sealed class ShellViewModel : ViewModelBase
         var items = new List<NavItem>
         {
             new() { Key = "dashboard", Label = "Dashboard", Section = "UTAMA", Glyph = "\uE80F", Shortcut = "F1" },
-            new() { Key = "pos", Label = "POS / Kasir", Section = "UTAMA", Glyph = "\uE7BF", Shortcut = "F2", Roles = ["Super Admin", "Admin", "Cashier"] },
+            new() { Key = "pos", Label = "POS / Kasir", Section = "UTAMA", Glyph = "\uE7BF", Shortcut = "F2", Roles = ["Super Admin", "Admin", "Cashier"], Feature = "pos" },
             new() { Key = "parked", Label = "Transaksi Tertunda", Section = "UTAMA", Glyph = "\uE769", Roles = ["Super Admin", "Admin", "Cashier"] },
 
             new() { Key = "transactions", Label = "Riwayat Transaksi", Section = "PENJUALAN", Glyph = "\uE8A5", Shortcut = "F4", Roles = ["Super Admin", "Admin", "Finance"] },
-            new() { Key = "customers", Label = "Pelanggan", Section = "PENJUALAN", Glyph = "\uE716", Roles = ["Super Admin", "Admin", "Cashier"] },
+            new() { Key = "customers", Label = "Pelanggan", Section = "PENJUALAN", Glyph = "\uE716", Roles = ["Super Admin", "Admin", "Cashier"], Feature = "customers" },
             new() { Key = "register", Label = "Kas & Shift", Section = "PENJUALAN", Glyph = "\uE8EF", Shortcut = "F9", Roles = ["Super Admin", "Admin", "Cashier"] },
 
-            new() { Key = "products", Label = "Produk", Section = "INVENTORI", Glyph = "\uE7B8", Roles = ["Super Admin", "Admin", "Warehouse Manager", "Cashier"] },
+            new() { Key = "products", Label = "Produk", Section = "INVENTORI", Glyph = "\uE7B8", Roles = ["Super Admin", "Admin", "Warehouse Manager", "Cashier"], Feature = "products" },
             new() { Key = "categories", Label = "Kategori", Section = "INVENTORI", Glyph = "\uE8EC", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
             new() { Key = "units", Label = "Satuan", Section = "INVENTORI", Glyph = "\uE9D2", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
-            new() { Key = "inventory", Label = "Inventory", Section = "INVENTORI", Glyph = "\uE7B8", Shortcut = "F5", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
+            new() { Key = "inventory", Label = "Inventory", Section = "INVENTORI", Glyph = "\uE7B8", Shortcut = "F5", Roles = ["Super Admin", "Admin", "Warehouse Manager"], Feature = "inventory" },
             new() { Key = "warehouses", Label = "Gudang", Section = "INVENTORI", Glyph = "\uE80F", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
-            new() { Key = "purchase-orders", Label = "Purchase Order", Section = "INVENTORI", Glyph = "\uE7BF", Shortcut = "F7", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
-            new() { Key = "stock-counts", Label = "Stock Opname", Section = "INVENTORI", Glyph = "\uE9F9", Shortcut = "F8", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
-            new() { Key = "suppliers", Label = "Supplier", Section = "INVENTORI", Glyph = "\uE716", Roles = ["Super Admin", "Admin", "Warehouse Manager"] },
+            new() { Key = "purchase-orders", Label = "Purchase Order", Section = "INVENTORI", Glyph = "\uE7BF", Shortcut = "F7", Roles = ["Super Admin", "Admin", "Warehouse Manager"], Feature = "purchase_orders" },
+            new() { Key = "stock-counts", Label = "Stock Opname", Section = "INVENTORI", Glyph = "\uE9F9", Shortcut = "F8", Roles = ["Super Admin", "Admin", "Warehouse Manager"], Feature = "stock_counts" },
+            new() { Key = "suppliers", Label = "Supplier", Section = "INVENTORI", Glyph = "\uE716", Roles = ["Super Admin", "Admin", "Warehouse Manager"], Feature = "suppliers" },
 
-            new() { Key = "reports", Label = "Laporan & Analitik", Section = "KEUANGAN", Glyph = "\uE9D2", Shortcut = "F6", Roles = ["Super Admin", "Admin", "Finance"] },
-            new() { Key = "expenses", Label = "Pengeluaran", Section = "KEUANGAN", Glyph = "\uE8EF", Roles = ["Super Admin", "Admin", "Finance"] },
+            new() { Key = "reports", Label = "Laporan & Analitik", Section = "KEUANGAN", Glyph = "\uE9D2", Shortcut = "F6", Roles = ["Super Admin", "Admin", "Finance"], Feature = "reports" },
+            new() { Key = "expenses", Label = "Pengeluaran", Section = "KEUANGAN", Glyph = "\uE8EF", Roles = ["Super Admin", "Admin", "Finance"], Feature = "expenses" },
             new() { Key = "taxes", Label = "Pajak", Section = "KEUANGAN", Glyph = "\uE8EC", Roles = ["Super Admin", "Admin", "Finance"] },
 
-            new() { Key = "branches", Label = "Cabang", Section = "ADMINISTRASI", Glyph = "\uE80F", Roles = ["Super Admin", "Admin"] },
+            new() { Key = "branches", Label = "Cabang", Section = "ADMINISTRASI", Glyph = "\uE80F", Roles = ["Super Admin", "Admin"], Feature = "multi_branch" },
             new() { Key = "tenants", Label = "Tenant", Section = "ADMINISTRASI", Glyph = "\uE80F", Roles = ["Super Admin", "Admin"] },
-            new() { Key = "users", Label = "Pengguna & RBAC", Section = "ADMINISTRASI", Glyph = "\uE716", Roles = ["Super Admin", "Admin"] },
+            new() { Key = "users", Label = "Pengguna & RBAC", Section = "ADMINISTRASI", Glyph = "\uE716", Roles = ["Super Admin", "Admin"], Feature = "users" },
             new() { Key = "activity-logs", Label = "Log Aktivitas", Section = "ADMINISTRASI", Glyph = "\uE8A5", Roles = ["Super Admin", "Admin", "Finance"] },
+            new() { Key = "subscription", Label = "Langganan", Section = "ADMINISTRASI", Glyph = "\uE8C7", Roles = ["Super Admin", "Admin"] },
             new() { Key = "settings", Label = "Pengaturan", Section = "ADMINISTRASI", Glyph = "\uE713", Shortcut = "F10", Roles = ["Super Admin", "Admin"] },
             new() { Key = "sync", Label = "Sinkronisasi", Section = "ADMINISTRASI", Glyph = "\uE895" },
         };
 
-        return items.Where(item => Allowed(item.Roles));
+        var allowed = items.Where(item => Allowed(item.Roles)
+            && AppServices.Subscription.HasFeature(item.Feature)).ToList();
+
+        // Trial/paket berakhir: tetap izinkan halaman langganan dan sinkronisasi
+        // agar pengguna dapat membayar, tetapi menu operasional dikunci.
+        if (AppServices.Subscription.IsBlocked)
+        {
+            allowed = allowed
+                .Where(item => item.Key is "subscription" or "sync" or "settings")
+                .ToList();
+        }
+
+        return allowed;
     }
 }

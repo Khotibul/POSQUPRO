@@ -12,6 +12,7 @@ public static class AppServices
     public static SalesService Sales { get; private set; } = null!;
     public static LocalQueries Queries { get; private set; } = null!;
     public static SyncService Sync { get; private set; } = null!;
+    public static SubscriptionService Subscription { get; private set; } = null!;
 
     public static async Task InitializeAsync()
     {
@@ -24,5 +25,6 @@ public static class AppServices
         Sales = new SalesService(Db, Settings);
         Queries = new LocalQueries(Db);
         Sync = new SyncService(Db, Api, Settings);
+        Subscription = new SubscriptionService(Api);
     }
 }

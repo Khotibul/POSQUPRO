@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'ipaymu' => [
+        'va' => env('IPAYMU_VA'),
+        'api_key' => env('IPAYMU_API_KEY'),
+        'sandbox' => env('IPAYMU_SANDBOX', true),
+        'base_url' => env('IPAYMU_BASE_URL'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

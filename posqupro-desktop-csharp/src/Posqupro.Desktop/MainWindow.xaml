@@ -47,6 +47,9 @@
         <DataTemplate DataType="{x:Type vm:SyncViewModel}">
             <views:SyncView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SubscriptionViewModel}">
+            <views:SubscriptionView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -137,11 +140,23 @@
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Border Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}"
+            <Border Grid.Row="0" Background="{StaticResource WarningWash}" BorderBrush="{StaticResource Hairline}"
+                    BorderThickness="0,0,0,1" Padding="24,8"
+                    Visibility="{Binding ShowSubscriptionBanner, Converter={StaticResource BoolToVisibility}}">
+                <Grid>
+                    <TextBlock Text="{Binding SubscriptionBannerText}" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource Warning}" VerticalAlignment="Center" />
+                    <Button Content="Lihat Langganan" Style="{StaticResource LinkButton}"
+                            Command="{Binding OpenSubscriptionCommand}" HorizontalAlignment="Right" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}"
                     BorderThickness="0,0,0,1" Padding="24,14">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -204,9 +219,9 @@
                 </Grid>
             </Border>
 
-            <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" Margin="22" />
+            <ContentControl Grid.Row="2" Content="{Binding CurrentPage}" Margin="22" />
 
-            <Border Grid.Row="2" Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}"
+            <Border Grid.Row="3" Background="{StaticResource Paper}" BorderBrush="{StaticResource Hairline}"
                     BorderThickness="0,1,0,0" Padding="24,8">
                 <Grid>
                     <TextBlock Text="{Binding SyncStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" />

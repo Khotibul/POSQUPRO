@@ -17,6 +17,7 @@ const { success, error } = useToast()
 const props = defineProps({
   tenant: { type: Object, required: true },
   invoices: { type: Object, default: () => ({ data: [] }) },
+  plans: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
 })
 
@@ -225,7 +226,7 @@ function activateTenant() {
             <label class="block text-sm font-medium mb-1">Paket</label>
             <select v-model="form.plan_id" class="w-full px-3 py-2 border border-border rounded-lg text-sm">
               <option :value="null">Free</option>
-              <option v-for="p in $page.props.plans || []" :key="p.id" :value="p.id">{{ p.name }}</option>
+              <option v-for="p in props.plans" :key="p.id" :value="p.id">{{ p.name }} - Rp {{ Number(p.price).toLocaleString('id-ID') }}/bln</option>
             </select>
           </div>
         </div>

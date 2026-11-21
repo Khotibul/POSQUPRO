@@ -212,8 +212,11 @@ class ApiService {
 
     return {
       'success': false,
+      'status': response.statusCode,
       'message': validationMessage ?? body['message'] ?? 'Terjadi kesalahan',
       'errors': errors,
+      'subscription_required': response.statusCode == 402 || body['code'] == 'subscription_inactive',
+      'feature_not_in_plan': body['code'] == 'feature_not_in_plan',
     };
   }
 }

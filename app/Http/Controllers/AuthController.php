@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\SubscriptionService;
 use App\Services\TenantOwnerService;
 use App\Support\LegacyPassword;
 use Illuminate\Http\Request;
@@ -47,7 +48,6 @@ class AuthController extends Controller
                 'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
                 'status' => 'trial',
-                'trial_ends_at' => now()->addDays(14),
             ]);
 
             [$owner] = app(TenantOwnerService::class)->create($tenant, [
@@ -55,6 +55,9 @@ class AuthController extends Controller
                 'email' => $validated['email'],
                 'password' => $validated['password'],
             ]);
+
+            // Demo 30 hari dengan seluruh fitur terbuka.
+            app(SubscriptionService::class)->startTrial($tenant);
 
             return $owner;
         });

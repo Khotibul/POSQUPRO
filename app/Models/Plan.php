@@ -10,6 +10,23 @@ class Plan extends Model
 {
     use HasFactory;
 
+    /** @var array<string, string> */
+    public const FEATURE_LABELS = [
+        'pos' => 'POS / Kasir',
+        'products' => 'Produk & Stok',
+        'customers' => 'Pelanggan',
+        'suppliers' => 'Supplier',
+        'inventory' => 'Inventory',
+        'expenses' => 'Pengeluaran',
+        'users' => 'Pengguna & RBAC',
+        'reports' => 'Laporan & Analitik',
+        'purchase_orders' => 'Purchase Order',
+        'stock_counts' => 'Stock Opname',
+        'multi_branch' => 'Multi Cabang & Gudang',
+        'api_access' => 'Akses API / Mobile',
+        'priority_support' => 'Priority Support',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -21,6 +38,8 @@ class Plan extends Model
         'trial_days',
         'max_users',
         'max_products',
+        'max_customers',
+        'max_transactions_per_month',
         'max_branches',
         'features',
         'is_active',
@@ -33,6 +52,14 @@ class Plan extends Model
         'features' => 'array',
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Zero means unlimited; consumers should use PlanService helpers.
+     */
+    public function isUnlimited(string $limit): bool
+    {
+        return (int) ($this->{$limit} ?? 0) <= 0;
+    }
 
     public function subscriptions(): HasMany
     {

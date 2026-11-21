@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsurePlanFeature;
+use App\Http\Middleware\EnsureTenantSubscription;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\TenantPlanMiddleware;
 use Illuminate\Foundation\Application;
@@ -21,11 +23,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             TenantPlanMiddleware::class,
+            EnsureTenantSubscription::class,
         ]);
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'subscription.active' => EnsureTenantSubscription::class,
+            'plan.feature' => EnsurePlanFeature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -24,10 +24,30 @@ const { toasts, remove } = useToast()
 
 const user = computed(() => page.props.auth?.user)
 
+const tenant = computed(() => page.props.tenant)
+const planFeatures = computed(() => page.props.tenant?.features || null)
+
 const canAccess = (item) =>
   !item.roles || item.roles.some(r => user.value?.roles?.includes(r))
 
-const filteredNav = computed(() => navItems.filter(canAccess))
+const canUseFeature = (item) =>
+  !item.feature || !planFeatures.value || planFeatures.value.includes(item.feature)
+
+const filteredNav = computed(() => navItems.filter(item => canAccess(item) && canUseFeature(item)))
+
+const showSubscriptionBanner = computed(() => {
+  if (!tenant.value) return false
+  if (page.url.startsWith('/billing')) return false
+  return tenant.value.is_trial || tenant.value.is_expired || tenant.value.status === 'suspended'
+})
+
+const subscriptionMessage = computed(() => {
+  if (!tenant.value) return ''
+  if (tenant.value.status === 'suspended') return 'Akun tenant ditangguhkan. Hubungi administrator.'
+  if (tenant.value.is_expired) return 'Masa demo/langganan berakhir. Pilih paket untuk melanjutkan.'
+  const days = tenant.value.subscription?.days_remaining ?? 0
+  return `Demo tersisa ${days} hari. Semua fitur terbuka.`
+})
 
 function handleKeydown(e) {
   if (!isMobile.value && e.key.startsWith('F') && e.key.length <= 3) {
@@ -96,6 +116,15 @@ onUnmounted(() => {
       />
 
       <main class="flex-1 p-4 lg:p-6 overflow-auto bg-muted/30 min-h-[calc(100vh-4rem)]">
+        <div
+          v-if="showSubscriptionBanner"
+          class="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl px-4 py-3 text-sm"
+          :class="tenant.is_expired || tenant.status === 'suspended' ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-amber-50 text-amber-800 border border-amber-200'"
+        >
+          <span>{{ subscriptionMessage }}</span>
+          <a href="/billing" class="font-semibold underline whitespace-nowrap">Kelola langganan</a>
+        </div>
+
         <slot name="header" />
         <slot />
       </main>
