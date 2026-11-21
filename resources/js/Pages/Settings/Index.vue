@@ -40,13 +40,13 @@ function setSetting(key, value) {
   else props.settings.push({ key, value, group: '' })
 }
 
-// Store form
+// Store form — key HARUS sama dengan yang dibaca mobile/desktop (store.name, dst)
 const storeForm = ref({
-  store_name: getSetting('store.name'),
-  store_phone: getSetting('store.phone'),
-  store_address: getSetting('store.address'),
-  receipt_header: getSetting('receipt.header'),
-  receipt_footer: getSetting('receipt.footer'),
+  'store.name': getSetting('store.name'),
+  'store.phone': getSetting('store.phone'),
+  'store.address': getSetting('store.address'),
+  'receipt.header': getSetting('receipt.header'),
+  'receipt.footer': getSetting('receipt.footer'),
 })
 
 async function saveStore() {
@@ -202,12 +202,12 @@ const receiptPreviewWidth = computed(() => {
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium">Nama Toko</label>
-            <input v-model="storeForm.store_name" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="POSQUPRO" />
+            <input v-model="storeForm['store.name']" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="POSQUPRO" />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium">Telepon</label>
-              <input v-model="storeForm.store_phone" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="0812..." />
+              <input v-model="storeForm['store.phone']" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="0812..." />
             </div>
             <div>
               <label class="text-sm font-medium">Cabang</label>
@@ -216,7 +216,7 @@ const receiptPreviewWidth = computed(() => {
           </div>
           <div>
             <label class="text-sm font-medium">Alamat</label>
-            <textarea v-model="storeForm.store_address" rows="2" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="Jl. ..."></textarea>
+            <textarea v-model="storeForm['store.address']" rows="2" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="Jl. ..."></textarea>
           </div>
         </div>
       </Card>
@@ -225,11 +225,11 @@ const receiptPreviewWidth = computed(() => {
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium">Header Struk</label>
-            <input v-model="storeForm.receipt_header" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="Terima Kasih Telah Berbelanja" />
+            <input v-model="storeForm['receipt.header']" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="Terima Kasih Telah Berbelanja" />
           </div>
           <div>
             <label class="text-sm font-medium">Footer Struk</label>
-            <textarea v-model="storeForm.receipt_footer" rows="2" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="Terima kasih, kunjungi lagi!"></textarea>
+            <textarea v-model="storeForm['receipt.footer']" rows="2" class="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background" placeholder="Terima kasih, kunjungi lagi!"></textarea>
           </div>
           <button @click="showReceiptPreview = true" class="text-sm text-primary hover:underline">Lihat Preview Struk</button>
         </div>
@@ -496,13 +496,13 @@ const receiptPreviewWidth = computed(() => {
           <div :style="{ width: receiptPreviewWidth + 'px', fontFamily: printerForm['printer.font.family'] || 'monospace', fontSize: (printerForm['printer.font.size'] || 7) + 'px', lineHeight: (printerForm['printer.spacing.line'] || 80) / 10 + 'px' }"
             class="bg-white text-black p-4 border border-gray-300 shadow-inner text-left whitespace-pre-wrap break-words">
             <div class="text-center mb-2">
-              <p class="font-bold text-base">{{ storeForm.store_name || 'TOKO POSQU PRO' }}</p>
-              <p>{{ storeForm.store_address || 'Alamat Toko' }}</p>
-              <p>Telp: {{ storeForm.store_phone || '-' }}</p>
+              <p class="font-bold text-base">{{ storeForm['store.name'] || 'TOKO POSQU PRO' }}</p>
+              <p>{{ storeForm['store.address'] || 'Alamat Toko' }}</p>
+              <p>Telp: {{ storeForm['store.phone'] || '-' }}</p>
               <p class="border-t border-dashed border-black mt-1 pt-1">--------------------------------</p>
             </div>
             <div class="text-center text-xs mb-2">
-              <p>{{ storeForm.receipt_header || 'Terima Kasih Telah Berbelanja' }}</p>
+              <p>{{ storeForm['receipt.header'] || 'Terima Kasih Telah Berbelanja' }}</p>
             </div>
             <div class="border-t border-dashed border-black pt-1 mb-1">
               <p>INV-20260904-001</p>
@@ -521,7 +521,7 @@ const receiptPreviewWidth = computed(() => {
               <div class="flex justify-between"><span>Kembalian</span><span>15.000</span></div>
             </div>
             <div class="border-t border-dashed border-black pt-2 mt-2 text-center text-xs">
-              <p>{{ storeForm.receipt_footer || '' }}</p>
+              <p>{{ storeForm['receipt.footer'] || '' }}</p>
               <p class="mt-1">=== TERIMA KASIH ===</p>
             </div>
           </div>

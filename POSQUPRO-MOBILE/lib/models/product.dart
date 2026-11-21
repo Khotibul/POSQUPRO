@@ -19,10 +19,20 @@ class Product {
   final int stock;
   final int minStock;
   final String? image;
+  final String? photo;
   final String? description;
   final bool isActive;
 
+  /// Foto yang akan ditampilkan: photo asli lebih dulu, lalu image.
+  String? get displayImage => _nonEmpty(photo) ?? _nonEmpty(image);
+
   bool get isLowStock => stock <= minStock;
+
+  static String? _nonEmpty(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty || s == 'null' ? null : s;
+  }
 
   Product({
     required this.id,
@@ -45,11 +55,17 @@ class Product {
     this.stock = 0,
     this.minStock = 0,
     this.image,
+    this.photo,
     this.description,
     this.isActive = true,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    // photo (foto asli) diprioritaskan; image (banner teks) hanya cadangan.
+    // String kosong TIDAK boleh menimpa photo — pakai firstNonEmpty.
+    final photo = _nonEmpty(json['photo']) ?? _nonEmpty(json['image']);
+    final image = _nonEmpty(json['image']) ?? _nonEmpty(json['photo']);
+
     return Product(
       id: _toInt(json['id']) ?? 0,
       name: json['name']?.toString() ?? '',
@@ -70,7 +86,8 @@ class Product {
       minWholesale: _toInt(json['min_wholesale']) ?? 0,
       stock: _toDouble(json['stock']).round(),
       minStock: _toDouble(json['min_stock']).round(),
-      image: json['image']?.toString() ?? json['photo']?.toString(),
+      image: image,
+      photo: photo,
       description: json['description']?.toString(),
       isActive: _toBool(json['is_active'] ?? json['active'], fallback: true),
     );

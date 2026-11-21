@@ -263,12 +263,19 @@ class LocalDatabaseProvider extends ChangeNotifier {
       'price': row['price'],
       'stock': row['stock'],
       'min_stock': row['min_stock'],
-      'image': row['image'] ?? row['photo'],
-      'photo': row['photo'],
+      // photo asli diprioritaskan; string kosong jangan menimpa.
+      'photo': _nonEmpty(row['photo']) ?? _nonEmpty(row['image']),
+      'image': _nonEmpty(row['image']) ?? _nonEmpty(row['photo']),
       'description': row['description'],
       'is_active': row['is_active'] ?? row['active'],
       'active': row['active'],
     };
+  }
+
+  static String? _nonEmpty(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty || s == 'null' ? null : s;
   }
 
   Map<String, dynamic> _mapSaleRow(Map<String, dynamic> row) {

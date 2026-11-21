@@ -14,6 +14,7 @@ import '../models/customer.dart';
 import '../models/product.dart';
 import '../models/transaction.dart';
 import '../widgets/pressable.dart';
+import '../widgets/product_image.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -209,12 +210,7 @@ class _PosScreenState extends State<PosScreen> {
                                     color: AppColors.primarySurface,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: p.image != null && p.image!.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(10),
-                                          child: Image.network(p.image!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 24)),
-                                        )
-                                      : const Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 24),
+                                  child: ProductImage(photo: p.photo, image: p.image, size: 48, radius: 10),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -1292,9 +1288,14 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     if (settings.getSetting('printer.connection.type', defaultValue: 'bluetooth') != 'bluetooth') return null;
 
     final cart = context.read<CartProvider>();
-    final header = settings.getSetting('receipt.header', defaultValue: '').isNotEmpty
-        ? settings.getSetting('receipt.header')
-        : settings.getSetting('store.name', defaultValue: 'POSQUPRO');
+    // Judul struk = nama toko; alamat + telepon sebagai sub-header (seperti web).
+    final storeName = settings.getSetting('store.name', defaultValue: 'POSQUPRO');
+    final storeAddress = settings.getSetting('store.address', defaultValue: '');
+    final storePhone = settings.getSetting('store.phone', defaultValue: '');
+    final subtitle = [
+      if (storeAddress.isNotEmpty) storeAddress,
+      if (storePhone.isNotEmpty) 'Telp: $storePhone',
+    ].join('\n');
 
     return ReceiptBuilder.build(
       receipt: ReceiptData(
@@ -1318,7 +1319,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 ))
             .toList(),
       ),
-      headerTitle: header,
+      headerTitle: storeName,
+      headerSubtitle: subtitle,
       footerNote: settings.getSetting('receipt.footer', defaultValue: ''),
       paperWidth: settings.getSetting('printer.paper.width', defaultValue: '80'),
       showSku: settings.getSetting('printer.show.sku', defaultValue: 'true') != 'false',

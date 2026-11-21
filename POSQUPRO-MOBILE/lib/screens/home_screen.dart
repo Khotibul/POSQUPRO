@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/local_database_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/pressable.dart';
 import 'products_screen.dart';
@@ -61,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Muat pengaturan toko (nama/telepon/alamat) sekali saat masuk home.
+      context.read<SettingsProvider>().loadPublicSettings();
       await context.read<LocalDatabaseProvider>().initFromSaved();
       if (!mounted) return;
       context.read<LocalDatabaseProvider>().loadAll();

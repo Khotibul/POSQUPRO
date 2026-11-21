@@ -20,7 +20,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SettingsProvider>().loadPublicSettings();
+      // Force reload agar nama/telepon/alamat toko selalu terbaru.
+      context.read<SettingsProvider>().loadPublicSettings(force: true);
     });
   }
 
@@ -178,10 +179,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _editStoreSettings(BuildContext context, SettingsProvider settings) async {
-    final nameCtrl = TextEditingController(text: settings.getSetting('store.name', defaultValue: ''));
-    final addressCtrl = TextEditingController(text: settings.getSetting('store.address', defaultValue: ''));
-    final phoneCtrl = TextEditingController(text: settings.getSetting('store.phone', defaultValue: ''));
-    final footerCtrl = TextEditingController(text: settings.getSetting('receipt.footer', defaultValue: ''));
+    final nameCtrl = TextEditingController(text: settings.getRawSetting('store.name'));
+    final addressCtrl = TextEditingController(text: settings.getRawSetting('store.address'));
+    final phoneCtrl = TextEditingController(text: settings.getRawSetting('store.phone'));
+    final footerCtrl = TextEditingController(text: settings.getRawSetting('receipt.footer'));
 
     final ok = await showDialog<bool>(
       context: context,
@@ -228,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: success ? AppColors.success : AppColors.danger,
       ),
     );
-    if (success) await provider.loadPublicSettings();
+    if (success) await provider.loadPublicSettings(force: true);
   }
 }
 

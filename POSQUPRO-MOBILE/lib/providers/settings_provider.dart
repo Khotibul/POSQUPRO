@@ -17,6 +17,14 @@ class SettingsProvider extends ChangeNotifier {
   String? get error => _error;
 
   String getSetting(String key, {String defaultValue = ''}) {
+    final v = _publicSettings[key];
+    if (v == null) return defaultValue;
+    // Anggap string kosong = belum diisi supaya default tampil.
+    return v.isEmpty ? defaultValue : v;
+  }
+
+  /// Nilai mentah (kosong = kosong), untuk field edit.
+  String getRawSetting(String key, {String defaultValue = ''}) {
     return _publicSettings[key] ?? defaultValue;
   }
 
@@ -43,15 +51,17 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadPublicSettings() async {
+  Future<void> loadPublicSettings({bool force = false}) async {
+    // Sudah terisi dan tidak force → lewati (hemat request).
+    if (!force && _publicSettings.isNotEmpty) return;
     try {
       final res = await _api.get(ApiConstants.settingsPublic);
       if (res['success'] == true) {
         final data = res['data'];
         if (data is Map) {
           _publicSettings = data.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+          notifyListeners();
         }
-        notifyListeners();
       }
     } catch (_) {}
   }

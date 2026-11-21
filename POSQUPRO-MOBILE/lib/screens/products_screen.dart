@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../core/product_image_url.dart';
+import '../widgets/product_image.dart';
 import 'package:provider/provider.dart';
 import '../core/api_service.dart';
 import '../core/constants.dart';
@@ -165,9 +167,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(color: AppColors.primarySurface, borderRadius: BorderRadius.circular(10)),
-            child: p.image != null && p.image!.isNotEmpty
-                ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(p.image!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 24)))
-                : const Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 24),
+            child: ProductImage(photo: p.photo, image: p.image, size: 56, radius: 10),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -299,7 +299,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     _supplierId = widget.product?.supplierId;
     _type = widget.product?.type ?? 'finished_goods';
     _isActive = widget.product?.isActive ?? true;
-    _photoUrl = widget.product?.image;
+    _photoUrl = resolveProductImageUrl(widget.product?.displayImage);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<ProductProvider>().loadMasterData();
     });
@@ -504,14 +504,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
                               border: Border.all(color: AppColors.border),
                             ),
                             child: _photoUrl != null && _photoUrl!.isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.network(
-                                      _photoUrl!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: AppColors.primary, size: 24),
-                                    ),
-                                  )
+                                ? ProductImage(photo: _photoUrl, size: 72, radius: 10, placeholderIcon: Icons.broken_image_outlined)
                                 : const Icon(Icons.photo_camera_outlined, color: AppColors.primary, size: 24),
                           ),
                           const SizedBox(width: 12),
@@ -672,7 +665,9 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     if (res['success'] == true) {
       final data = res['data'];
       final product = data is Map ? data['data'] : null;
-      setState(() => _photoUrl = product is Map ? (product['image'] ?? product['photo']) : _photoUrl);
+      if (product is Map) {
+        setState(() => _photoUrl = resolveProductImageUrl(product['photo'] ?? product['image']) ?? _photoUrl);
+      }
       if (mounted) {
         context.read<ProductProvider>().loadProducts(refresh: true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto produk diupload')));
@@ -696,7 +691,9 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     if (res['success'] == true) {
       final data = res['data'];
       final product = data is Map ? data['data'] : null;
-      setState(() => _photoUrl = product is Map ? (product['image'] ?? _photoUrl) : _photoUrl);
+      if (product is Map) {
+        setState(() => _photoUrl = resolveProductImageUrl(product['image'] ?? product['photo']) ?? _photoUrl);
+      }
       if (mounted) {
         context.read<ProductProvider>().loadProducts(refresh: true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto berteks berhasil digenerate')));

@@ -126,6 +126,13 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   }
 
   String _sampleReceipt() {
+    final address = _settings.getSetting('store.address', defaultValue: '');
+    final phone = _settings.getSetting('store.phone', defaultValue: '');
+    final subtitle = [
+      if (address.isNotEmpty) address,
+      if (phone.isNotEmpty) 'Telp: $phone',
+    ].join('\n');
+
     return ReceiptBuilder.build(
       receipt: ReceiptData(
         invoiceNo: 'INV-TEST',
@@ -143,7 +150,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
         ],
       ),
       headerTitle: _headerCtrl.text.trim().isEmpty ? 'POSQUPRO' : _headerCtrl.text.trim(),
-      headerSubtitle: 'Jl. Contoh No. 1',
+      headerSubtitle: subtitle,
       footerNote: _footerCtrl.text.trim(),
       paperWidth: _paper,
       showSku: _showSku,
